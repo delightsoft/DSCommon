@@ -1,0 +1,305 @@
+package models;
+
+${fingerprint}
+
+import code.docflow.DocflowConfig;
+import code.docflow.action.ActionParams;
+import code.docflow.model.DocType;
+import code.docflow.model.State;
+import code.docflow.queries.FiltersEnum;
+import code.docflow.queries.SortOrdersEnum;
+import code.jsonBinding.annotations.field.*;
+import code.jsonBinding.annotations.doc.*;
+import code.models.Document;
+import code.models.PersistentDocument;
+import code.types.PolymorphicRef;
+import code.utils.EnumCaseInsensitiveIndex;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.Type;
+import org.joda.time.DateTime;
+import play.db.jpa.GenericModel;
+import play.exceptions.UnexpectedException;
+
+import javax.persistence.*;
+import java.util.List;
+
+import static com.google.common.base.Preconditions.*;
+
+%{
+    def isReport = entity.type.toString() == 'REPORT' || entity.type.toString() == 'REPORT_STRUCTURE'
+    def isEntity = !isReport
+    def isDocument = entity.type.toString() != 'STRUCTURE' && entity.type.toString() != 'EMBEDDED_STRUCTURE' && entity.type.toString() != 'REPORT_STRUCTURE'
+
+    T = "    "; // one tab
+
+    if (isEntity && entity.type.toString() != 'EMBEDDED_STRUCTURE')
+     out.println "@Entity(name = \"${entity.tableName}\")"
+
+    if (entity.type.toString() == "STRUCTURE")
+        out.println "@JsonPartOfStructure(fkField = \"${entity.fkField.name}\")"
+
+    if (entity.type.toString() == "EMBEDDED_STRUCTURE")
+        out.println "@Embeddable"
+
+    out.print "public class ${entity.name}"
+
+    switch (entity.type.toString()) {
+        case "STRUCTURE": out.print " extends GenericModel"; break
+        case "REPORT": out.print " extends Document"; break
+        case "ONE_STATE_DOCUMENT": out.print " extends PersistentDocument"; break
+        case "DOCUMENT": out.print " extends PersistentDocument"; break
+    }
+
+    out.println " {"
+    if (isEntity && entity.type.toString() != 'EMBEDDED_STRUCTURE') {
+        out.println()
+        out.println T + "public static final String TABLE = \"${entity.tableName}\";"
+    }
+
+    // fields
+    def hasStateField = false
+    entity.fields.each { field ->
+
+        switch (field.implicitFieldType.toString()) {
+            case "id":
+                out.println()
+                out.println T + "@Id"
+                if (targetdb == 'mysql')
+                    out.println T + "@GeneratedValue(strategy = GenerationType.AUTO)"
+                else { // otherwise, it's postgres
+                    out.println T + "@SequenceGenerator(name = \"${entity.tableName}_seq\", sequenceName = \"${entity.tableName}_seq\", initialValue = 1, allocationSize = 1)"
+                    out.println T + "@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = \"${entity.tableName}_seq\")"
+                }
+                out.println T + "public long id;"
+                return;
+            case "fk":
+                out.println()
+                out.println T + "@ManyToOne(fetch = FetchType.LAZY)"
+                out.println T + "public ${entity.outerStructure.name} ${field.name};"
+                return;
+            case "i":
+                out.println()
+                out.println T + "@JsonIndex"
+                out.println T + "public short i;"
+                return;
+            case "rev":
+            case "created":
+            case "modified":
+            case "deleted":
+                // those fld are defined in EntityBases
+                return;
+            case "state":
+                hasStateField = true;
+                out.println()
+                out.println T + "@Enumerated(EnumType.STRING)"
+                out.println T + "@Column(length = 100, nullable = false)"
+                out.println T + "public States state = States.NEW;"
+                return;
+        }
+
+        out.println()
+
+        if (isEntity && field.calculated)
+            out.println T + '@Transient'
+
+        field.smartTag 'model', this, [entity: isEntity]
+
+        if (field.type.toString() == "enum" && field.udtType == null) {
+            out.println()
+            out.println "    public enum ${code.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)} {"
+            field.strValues.values().eachWithIndex { item, i ->
+                out.print "        ${code.utils.NamesUtil.wordsToUpperUnderscoreSeparated(item.name)}(\"${item.name}\")"
+                if (i < (field.strValues.size() - 1))
+                    out.println ","
+             }
+             out.println ";"
+             out.println()
+             out.println "        private final String name;"
+             out.println "        private ${code.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)}(String name) { this.name = name; }"
+             out.println "        public String toString() { return name; }"
+             out.println "    }"
+        }
+    }
+
+    if (entity.type.toString() != 'STRUCTURE' && entity.type.toString() != 'EMBEDDED_STRUCTURE' && entity.type.toString() != 'REPORT_STRUCTURE') {
+        def doc = entity.document
+
+        // states
+        out.println()
+        out.println T + "public enum States {"
+        doc.statesArray.eachWithIndex { state, i ->
+            out.println T + T + state.name.wordsToUpperUnderscoreSeparated() + '("' + state.name + '", ' + state.index + ')' + ((i + 1) == doc.statesArray.size() ? ';' : ',')
+        }
+        out.println T + T + 'public final int index;'
+        out.println T + T + 'private final String name;'
+        out.println T + T + 'private States(String name, int index) { this.name = name; this.index = index; }'
+        out.println T + T + 'public String toString() { return name; }'
+        out.println T + '}'
+        out.println()
+        out.println T + "public static EnumCaseInsensitiveIndex<States> _states = new EnumCaseInsensitiveIndex<States>(States.class);"
+
+        // filters
+        if (doc.filters != null) {
+            out.println()
+            out.println T + "public enum Filters implements FiltersEnum {"
+            doc.filters.eachWithIndex { item, i ->
+                out.print T + T + item.value.name.wordsToUpperUnderscoreSeparated() + '("' + item.value.name + '"'
+                if (item.value.where)
+                    out.print ', "' + item.value.where.replace('\"', '\\\"') + '"'
+                out.println ')' + ((i + 1) == doc.filters.size() ? ';' : ',')
+            }
+            out.println T + T + 'private final String name;'
+            out.println T + T + 'public final String where;'
+            out.println T + T + 'private Filters(String name) { this.name = name; this.where = null; }'
+            out.println T + T + 'private Filters(String name, String where) { this.name = name; this.where = where; }'
+            out.println T + T + 'public String toString() { return name; }'
+            out.println T + T + '@Override public String getWhere() { return where; }'
+            out.println T + "}"
+            out.println()
+            out.println T + "public static EnumCaseInsensitiveIndex<Filters> _filters = new EnumCaseInsensitiveIndex<Filters>(Filters.class);"
+        }
+
+        // sort orders
+        if (doc.sortOrders != null) {
+            out.println()
+            out.println T + "public enum SortOrders implements SortOrdersEnum {"
+            doc.sortOrders.eachWithIndex { item, i ->
+                out.print T + T + item.value.name.wordsToUpperUnderscoreSeparated() + '("' + item.value.name + '"'
+                if (item.value.sortOrder)
+                    out.print ', "' + item.value.sortOrder.replace('\"', '\\\"') + '"'
+                out.println ')' + ((i + 1) == doc.sortOrders.size() ? ';' : ',')
+            }
+            out.println T + T + 'private final String name;'
+            out.println T + T + 'public final String orderBy;'
+            out.println T + T + 'private SortOrders(String name) { this.name = name; this.orderBy = null; }'
+            out.println T + T + 'private SortOrders(String name, String orderBy) { this.name = name; this.orderBy = orderBy; }'
+            out.println T + T + 'public String toString() { return name; }'
+            out.println T + T + '@Override public String getOrderBy() { return orderBy; }'
+            out.println T + "}"
+            out.println()
+            out.println T + "public static EnumCaseInsensitiveIndex<SortOrders> _sortOrders = new EnumCaseInsensitiveIndex<SortOrders>(SortOrders.class);"
+        }
+
+        // fields
+        if (doc.allFields.size() > 0) {
+
+        out.println()
+        out.println T + "public enum Fields {"
+        doc.allFields.eachWithIndex { field, i ->
+            out.println T + T + field.fullname.replace('.', '_').wordsToUpperUnderscoreSeparated() + '("' + field.name + '", ' + field.index + ')' + ((i + 1) == doc.allFields.size() ? ';' : ',')
+        }
+        out.println T + T + 'public final int index;'
+        out.println T + T + 'private final String name;'
+        out.println T + T + 'private Fields(String name, int index) { this.name = name; this.index = index; }'
+        out.println T + T + 'public String toString() { return name; }'
+        out.println T + '}'
+        out.println()
+        out.println T + "public static EnumCaseInsensitiveIndex<Fields> _fields = new EnumCaseInsensitiveIndex<Fields>(Fields.class);"
+        }
+
+        // actions
+        out.println()
+        out.println T + "public enum Actions {"
+        doc.actionsArray.eachWithIndex { action, i ->
+            out.println T + T + action.name.wordsToUpperUnderscoreSeparated() + '("' + action.name + '", ' + action.index + ')' + ((i + 1) == doc.actionsArray.size() ? ';' : ',')
+        }
+        out.println T + T + 'public final int index;'
+        out.println T + T + 'private final String name;'
+        out.println T + T + 'private Actions(String name, int index) { this.name = name; this.index = index; }'
+        out.println T + T + 'public String toString() { return name; }'
+        out.println T + '}'
+        out.println()
+        out.println T + "public static EnumCaseInsensitiveIndex<Actions> _actions = new EnumCaseInsensitiveIndex<Actions>(Actions.class);"
+
+        // relations
+        if (doc.relations != null && doc.relations.size() > 0) {
+            out.println()
+            out.println T + "public enum Relations {"
+            doc.relations.eachWithIndex { item, i -> def relation = item.value
+                out.println T + T + relation.name.wordsToUpperUnderscoreSeparated() + '("' + relation.name + '", ' + relation.index + ')' + ((i + 1) == doc.relations.size() ? ';' : ',')
+            }
+            out.println T + T + 'public final int index;'
+            out.println T + T + 'private final String name;'
+            out.println T + T + 'private Relations(String name, int index) { this.name = name; this.index = index; }'
+            out.println T + T + 'public String toString() { return name; }'
+            out.println T + '}'
+            out.println()
+            out.println T + "public static EnumCaseInsensitiveIndex<Relations> _relations = new EnumCaseInsensitiveIndex<Relations>(Relations.class);"
+        }
+
+        // actions params, if such
+        doc.actionsArray.each { action -> if (action.params == null) return
+            out.println()
+            out.println "public static class ${action.paramsClassName} extends ActionParams {"
+            action.params.each { entry -> def param = entry.value
+                param.smartTag 'model', this, [entity:false]
+            }
+            out.print '};'
+        }
+    }
+
+    if (isDocument) {
+        out.println()
+        out.println T + "private static DocType _type;"
+        out.println()
+        out.println T + "public static DocType _type() {"
+        out.println T + T + "if (_type == null) {"
+        out.println T + T + T + "_type = DocflowConfig.instance.documents.get(\"${entity.name.toUpperCase()}\");"
+        out.println T + T + T + "_resetQueue.add(new ResetForTest() { @Override public void reset() { _type = null; }});"
+        out.println T + T + "}"
+        out.println T + T + "return _type;"
+        out.println T + "}"
+        out.println()
+        out.println T + "@Override"
+        out.println T + "public DocType _docType() {"
+        out.println T + T + "return _type();"
+        out.println T + "}"
+    }
+
+    if (entity.type.toString() == "DOCUMENT") { }%
+    @Override
+    public State _state() {
+        if (_state == null || !_state.name.equals(state.toString()))
+            _state = _docType().statesArray[state.index];
+        return _state;
+    }
+
+    @Override
+    public void _updateState(State newState) {
+        state = _states.get(newState.name);
+        checkNotNull(state, "Unknown state: %s", newState.name);
+    }%{ }
+    if (entity.type.toString() == "ONE_STATE_DOCUMENT") { }%
+    @Override
+    public State _state() {
+        if (_state == null || isPersistent() ^ _state.name.equals(States.PERSISTED.toString()))
+            _state = _docType().statesArray[isPersistent() ? States.PERSISTED.index : States.NEW.index];
+        return _state;
+    }
+
+    @Override
+    public void _updateState(State newState) {
+        States state = _states.get(newState.name);
+        checkNotNull(state, "Unknown state: %s", newState.name);
+    }
+
+%{  }
+    if (entity.type.toString() == "REPORT") { }%
+    @Transient
+    public State _state() {
+        if (_state == null)
+            _state = _docType().statesArray[States.PERSISTED.index];
+        return _state;
+    }
+
+    public String _fullId() {
+        return "";
+    }
+%{  }
+    if (entity.type.toString() == "ONE_STATE_DOCUMENT" || entity.type.toString() == "DOCUMENT") { }%
+    @Override
+    public String _fullId() {
+        return isPersistent() ? "${entity.document.name}@" + id : "${entity.document.name}";
+    }
+%{ } }%}

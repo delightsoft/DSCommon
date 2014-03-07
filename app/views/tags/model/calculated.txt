@@ -1,0 +1,1 @@
+    public ${_arg.javaType} ${_arg.name};

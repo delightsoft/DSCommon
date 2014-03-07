@@ -1,0 +1,9 @@
+package docflow;
+
+import code.controlflow.Result;
+import code.docflow.messages.MessageTemplate;
+
+public class ${className} {
+%{ msgMap.each { item -> def msg = item.value }%
+    public static final MessageTemplate ${msg.fieldName} = new MessageTemplate(Result.${msg.resultCode}, "${msg.en}", "${fileKey + item.key}");
+%{ } }%}

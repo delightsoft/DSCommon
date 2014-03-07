@@ -1,0 +1,23 @@
+- datetime          date
+
+- title             string(200)
+- imageUrl          string(200)
+- price             double
+
+- skype             string(40)
+- email             string(100)
+- phone             string(20)
+
+- firstName         string(40)
+- midName           string(40)
+- lastName          string(40)
+
+- city              string(40)
+- street            string(40)
+- house             string(20)
+
+- location          structure:
+    - lon           double
+    - lat           double
+
+- notes             text

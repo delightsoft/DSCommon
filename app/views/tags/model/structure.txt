@@ -1,0 +1,16 @@
+%{  T = "    "; // one tab
+    def field = _arg
+    if (_entity) {
+        out.println T + "@AttributeOverrides({"
+        field.fields.eachWithIndex { item, i -> def fld = item.value
+            out.print T + T + "@AttributeOverride(name = \"${fld.name}\", column = " +
+                "@Column(name = \"${field.name}_${code.utils.NamesUtil.wordsToUnderscoreSeparated(fld.name)}\", " +
+                "nullable=${!fld.dbRequired}))"
+            if (i + 1 < field.fields.size()) out.print ","
+            out.println()
+        }
+        out.println T + "})"
+        out.println T + "@Embedded"
+    }
+    out.println T + "public ${field.entity.name} ${field.name};"
+}%

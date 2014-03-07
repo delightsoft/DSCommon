@@ -1,0 +1,1 @@
+#{model.subtable _arg, entity: _entity /}

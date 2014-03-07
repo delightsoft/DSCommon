@@ -1,0 +1,19 @@
+%{
+def field = _arg
+def T = "    "; // one tab
+
+if (!field.multiple) {
+    out.println T + "@Enumerated(EnumType.STRING)"
+    out.println T + "@Column(length = 100, nullable = ${!field.dbRequired})"
+    out.println T + "public ${field.udtType != null ? field.enumTypeName : code.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)} ${field.name};"
+    return;
+}
+
+def len = field.strValues.size() - 1 // it's for commas
+field.strValues.values().each { item -> len += item.name.length() }
+
+out.println T + "@JsonEnumMultiple(${field.udtType != null ? field.enumTypeName : code.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)}.class)"
+out.println T + "@Column(length=${len}, nullable = ${!field.dbRequired})"
+out.println T + "public String ${field.name};"
+
+}%

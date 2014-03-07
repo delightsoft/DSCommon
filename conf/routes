@@ -1,0 +1,17 @@
+GET     /tmpl/doc/index                                     DocflowHttpController.generalTemplate(template:'doc/index')
+GET     /tmpl/doc/{docType}                                 DocflowHttpController.documentHtmlTemplate
+GET     /tmpl/{<.*>template}                                DocflowHttpController.generalTemplate
+
+GET     /api/list/{docType}/?                               DocflowHttpController.list
+GET     /api/get/{id}/?                                     DocflowHttpController.get
+POST    /api/action/{id}/{action}/?                         DocflowHttpController.action
+GET     /api/action/{id}/{action}/?                         DocflowHttpController.action
+
+GET     /app/                                               staticDir:app/ngapp
+GET     /static/                                            staticDir:static
+# This path required for http://localhost:9000/@test
+GET     /public/                                            staticDir:public
+
+GET     /favicon.ico                                        404
+
+GET     /{<.*>rest}                                         DocflowHttpController.app

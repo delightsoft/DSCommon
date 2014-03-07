@@ -1,0 +1,93 @@
+- httpConcurrency(doc, docRef, user, userRef):
+    en: Document '$doc' was modified in parallel by '$user'.  Please, repeate your action.
+    ru: Документ '$doc' параллельно был изменен пользователем '$user'. Пожалуйста, повторите операцию.
+    ruHtml: Документ <a href='$docRef'>$doc</a> параллельно был изменен пользователем '$user'. Пожалуйста, повторите операцию.
+
+- httpUpdateSucceeded() info:
+    en: "Update succeeded"
+    ru: "Изменения сохранены"
+
+- httpCreateSucceeded() info:
+    en: "Create succeeded"
+    ru: "Добавлен документ"
+    ruHtml: "<docflow-actions-autohide />Добавлен документ"
+
+- httpDeleteSucceeded() info:
+    en: "Delete succeeded"
+    ru: "Документ удален"
+    ruHtml: "<docflow-actions-autohide />Документ удален"
+
+- httpRecoverSucceeded() info:
+    en: "Recover succeeded"
+    ru: "Документ восстановлен"
+    ruHtml: "<docflow-actions-autohide />Документ восстановлен"
+
+- httpInvalidActionParams():
+    en: "Invalid action params"
+
+- httpActionSucceeded ( actionName ) info:
+    en: "Action $actionName succeeded"
+    ru: "Действие \"$actionName\" выполнено"
+
+- validationFieldRequired ( fldName ):
+    en: "'$fldName' required."
+
+- validationFieldIncorrectValue(fldName, value):
+    en: "'$fldName' incorrect value: $value."
+
+- validationFieldIncorrectEnumValue(fldName, value):
+    en: "'$fldName' incorrect enum value: $value."
+
+- validationFieldNotAllowedReplaceLinkedDocument(fldName):
+    en: "'$fldName' not allowed replace linked document."
+
+- validationFieldMin ( fldName, min ):
+    en: "'$fldName' cannot be lower than $min."
+
+- validationFieldMax(fldName, max):
+    en: "'$fldName' cannot be greater than $max."
+
+- validationFieldNotInRange(fldName, min, max):
+    en: "'$fldName' not in the range $min through $max."
+
+- validationFieldMinLength(fldName, minLength):
+    en: "'$fldName' cannot be shorter than $minLength."
+
+- validationFieldMaxLength(fldName, maxLength):
+    en: "'$fldName' cannot be longer than $maxLength."
+
+- validationFieldPattern(fldName, pattern):
+    en: "'$fldName' must follow pattern '$pattern'."
+
+- validationSubtableWrongIndexValue(fldName, value):
+    en: "Index field '$fldName': Wrong value: '$value'."
+
+- validationSubtableIndexOutOfRange(fldName, value, to):
+    en: "Index field '$fldName': '$value' out of range 0 to $to."
+
+- validationSubtableIncorrectOrder(fldName):
+    en: "'$fldName': Incorrect order information."
+
+- validationStateCanOnlyBeAssignedToANewDocument(fldName):
+    en: "'$fldName': 'state' can only be applied to a new document."
+
+- validationStateNullOrEmpty(fldName):
+    en: "'$fldName': 'state' cannot be null or empty."
+
+- validationStateValue(fldName, state):
+    en: "'$fldName': Wrong state value 'state': $state."
+
+- docflowDocumentNotFound(docId):
+    en: "Document '$docId': Not found"
+
+- docflowInsufficientRights(docId, action):
+    en: "Insufficient rights to perform '$action' on document '$docId'."
+
+- docflowObsoleteRevision(docId, receivedRev, currentRev):
+    en: "Document '$docId': Document concurrent update. Update for revision $receivedRev may not update revision $currentRev."
+
+- docflowActionNoAllowedInState(docId, action, state):
+    en: "Document '$docId':  Action '$action' is not allowed in state '$state'."
+
+- actionParamsMissingParameter(action, parameterName):
+    en: "Action '$action': Missing parameter '$parameterName'"

@@ -1,0 +1,20 @@
+
+validation.required=Не заполнено
+validation.min=Меньше %d
+validation.max=Больше %d
+validation.minLength=Короче %d символов
+validation.maxLength=Длинее %d символов
+validation.pattern=Не верный формат
+validation.email= Не верный email
+
+# Enum: userRoles
+enum.userRoles=enum.userRoles
+
+# Structure: location
+struct.location=struct.location
+
+field.message.search.nothing = ничего не найдено
+form.cancel = Отменить
+form.createNew = Создать
+
+auth.googleoauth2=Войти через Google

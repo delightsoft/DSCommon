@@ -1,0 +1,10 @@
+%{  T = "    "; // one tab
+    def field = _arg
+    if (_entity) {
+        out.println T + "@OneToMany(fetch = FetchType.LAZY, mappedBy = \"${field.entity.fkField.name}\", cascade = CascadeType.ALL, orphanRemoval = false)"
+        out.println T + "@OnDelete(action = OnDeleteAction.CASCADE)"
+        out.println T + "@OrderColumn(name = \"i\")"
+        out.println T + "@JsonContains"
+    }
+    out.println T + "public List<${field.entity.name}> ${field.name};"
+}%

@@ -1,0 +1,26 @@
+# General temp files
+.DS_Store
+*.ser
+*.pyc
+
+# Files related to Play build or usage
+dist
+lib
+samples-and-tests/*/tmp/
+samples-and-tests/*/modules/
+
+# IDE and editors
+*~
+.idea
+nbproject
+eclipse
+.amateras
+.settings
+.classpath
+.project
+*.iml
+*.ipr
+*.iws
+
+# SVN
+.svn

@@ -1,0 +1,2 @@
+    #{if _entity}@Column(length = ${_arg.length}, nullable = ${_arg.dbRequired ? "false" : "true"})
+    #{/}public String ${_arg.name};
