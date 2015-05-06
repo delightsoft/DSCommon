@@ -2,6 +2,9 @@ package code.docflow.model;
 
 import code.docflow.DocflowConfig;
 import code.docflow.collections.Item;
+import code.docflow.compiler.enums.BuiltInFields;
+import code.docflow.compiler.enums.BuiltInTypes;
+import code.docflow.utils.BitArray;
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.WithCompositeKeyHandler;
 import code.docflow.yaml.compositeKeyHandlers.FieldCompositeKeyHandler;
@@ -23,42 +26,18 @@ import java.util.Map;
 @WithCompositeKeyHandler(FieldCompositeKeyHandler.class)
 public abstract class Field extends Item {
 
-    public enum Type {
-        STRING(new String[]{"length"}, new String[]{"maxLength", "minLength", "pattern"}),
-        DOUBLE(null, new String[]{"min", "max"}),
-        INT(null, new String[]{"min", "max"}),
-        LONG(null, new String[]{"min", "max"}),
-        BOOL(null, null),
-        ENUM(null, null),
-        REFERS(null, new String[]{"refDocument"}),
-        POLYMORPHIC_REFERS(null, new String[]{"refDocuments"}),
-        STRUCTURE(null, null),
-        SUBTABLE(null, null),
-        TAGS(null, null),
-        DATE(null, null),
-        TEXT(null, null),
-        TIMESTAMP(null, null),
-        PASSWORD(null, null),
-        CALCULATED(null, null);
-
-        public final String[] required;
-        public final String[] optional;
-        private final String[] empty = new String[0];
-
-        private Type(String[] required, String[] optional) {
-            this.required = required == null ? empty : required;
-            this.optional = optional == null ? empty : optional;
-        }
-
-        public String toString() {
-            return super.toString().toLowerCase();
-        }
+    protected Field() {
+        // In V1 default was nullable. Starting from V2 default become not-nullable
+        nullable = (DocflowConfig.instance.currentModule.schema == DocflowModule.Schema.V1);
     }
 
     @NotYamlField
     public DocType document;
 
-    public Type type;
+    @NotYamlField
+    public Entity entity;
+
+    public BuiltInTypes type;
 
     /**
      * Field template for UI.
@@ -76,13 +55,23 @@ public abstract class Field extends Item {
     public boolean hidden;
 
     /**
+     * True, if field is part of _result group.  To be used with task documents.
+     */
+    public boolean result;
+
+    /**
+     * When true, it's LocalDateTime.  Otherwise it's simply DateTime.
+     */
+    public boolean local;
+
+    /**
      * When true, this Field considered as field contained calculated, in some way, value.  So, it cannot be updated
      * by user directly.
      */
     public boolean derived;
 
     /**
-     * Can only by true, when 'derived' is true as well. When true, this Field calculated by code every
+     * Can only be true, when 'derived' is true as well. When true, this Field calculated by code every
      * time when data comes to user.  Otherwise, derived field are stored in db and being update
      * by other actions.
      */
@@ -103,14 +92,22 @@ public abstract class Field extends Item {
      */
     public boolean textstorage;
 
-    @NotYamlField
-    public boolean dbRequired;
+    /**
+     * True, if field can be 'null' and must be nullable within a database.
+     */
+    public boolean nullable;
+
+    /**
+     * True, if field should be annotated by '@Index()' and therefor an index for this field will be created in the database.
+     */
+    // Note: Alias flag is 'index'
+    public boolean indexFlag;
 
     @NotYamlField
     public String fullname;
 
     @NotYamlField
-    public DocflowConfig.ImplicitFields implicitFieldType;
+    public BuiltInFields implicitFieldType;
 
     @NotYamlField
     public Field udtTypeRef;
@@ -151,6 +148,7 @@ public abstract class Field extends Item {
         fld.template = template;
         fld.required = required;
         fld.hidden = hidden;
+        fld.local = local;
         fld.derived = derived;
         fld.calculated = calculated;
         fld.textstorage = textstorage;
@@ -179,7 +177,6 @@ public abstract class Field extends Item {
     * Runs tag for this field, based on field type, applying hierarchical type search.  This method is only
     * to be used in code generation tasks.  For UI rendering TmplField.smartTag ought to be used.
     */
-    @SuppressWarnings("unchecked")
     public void smartTag(String namespace, GroovyTemplate.ExecutableTemplate template, Map<String, Object> params) {
         final String path = namespace.replace(".", "/");
         int s = 0;
@@ -201,8 +198,10 @@ public abstract class Field extends Item {
             } catch (TemplateNotFoundException e) {
                 if (s == 2)
                     throw new TemplateExecutionException(template.template, 0,
-                            String.format("Document '%1$s': Field '%2$s': Not found tag '%3$s' to render field type.",
-                                    document.name, this.fullname, namespace + '.' + this.type),
+                            String.format((e.getMessage().endsWith(currentType + ".txt") ?
+                                    "Document '%1$s': Field '%2$s': Tag '%3$s' not found" : // Tag itself not found
+                                    "Document '%1$s': Field '%2$s': Failed render tag '%3$s'. Reason: '%4$s'"), // NotFoundException while rendering found tag
+                                            document.name, this.fullname, namespace + "." + type, e.getMessage()),
                             new Exception());
             }
             switch (s) {

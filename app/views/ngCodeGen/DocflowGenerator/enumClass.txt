@@ -1,0 +1,16 @@
+package docflow.enums;
+
+${fingerprint}
+
+public enum ${code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(type.name)} {
+%{ type.strValues.values().eachWithIndex { item, i ->
+    out.print "    ${code.docflow.utils.NamesUtil.wordsToUpperUnderscoreSeparated(item.name)}(\"${item.name}\")"
+    if (i < (type.strValues.size() - 1))
+        out.println ","
+ }
+ out.println ";"
+}%
+    private final String name;
+    private ${code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(type.name)}(String name) { this.name = name; }
+    public String toString() { return name; }
+}

@@ -1,6 +1,6 @@
 package code.docflow.yaml.builders;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.yaml.YamlMessages;
 import code.docflow.yaml.YamlParser;
 import code.docflow.yaml.converters.MapConverter;
@@ -66,7 +66,7 @@ public final class CompositeKeyMapBuilder extends ItemBuilder {
             Object el = elementBuilder.build(parser, localResult);
             if (localResult.isNotOk())
                 result.append(localResult);
-                if (el != null) {
+            if (el != null) {
                 final Object key = elementBuilder.compositeKeyHandler.key(el);
                 if (map.containsKey(key)) {
                     result.addMsg(YamlMessages.error_DuplicatedMapKey, parser.getSavedFilePosition(), key);

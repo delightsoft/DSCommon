@@ -1,11 +1,17 @@
-module = angular.module 'docflow.ui.client', ['docflow.ui.actions', 'docflow.ui.utils', 'docflow.config']
+module = angular.module 'docflow.ui.client', [
+  'docflow.config'
+  'docflow.ui.utils'
+  'docflow.ui.httpListener'
+  'docflow.ui.actions'
+]
 
 module.factory '$docflowClient',
-  ['$docflowActions', '$docflowUtils', '$docflowConfig', '$http', '$rootScope', '$q',
-  (($docflowActions, $docflowUtils, $docflowConfig, $http, $rootScope, $q) ->
+  ['$docflowActions', '$docflowUtils', '$docflowConfig', '$http', '$rootScope', '$document', '$q',
+  (($docflowActions, $docflowUtils, $docflowConfig, $http, $rootScope, $document, $q) ->
 
     currentAction = null
     createdDoc = null
+    formDoc = null
 
     return {
 
@@ -60,7 +66,7 @@ module.factory '$docflowClient',
 
         query = []
         for p, v of options
-          query.push "#{p}=#{v}" if angular.isDefined v unless p == 'params' || p == 'doc'
+          query.push "#{p}=#{v}" if angular.isDefined v unless p == 'params' || p == 'doc' || p == 'message'
 
         url = "/api/action/#{id}/#{name}?#{query.join '&'}&#{$docflowConfig.apiParams}"
 
@@ -68,9 +74,13 @@ module.factory '$docflowClient',
           data = {}
           data.params = options.params if options.params
           data.doc = options.doc if options.doc
+          showMessage = !angular.isDefined(options.message) || options.message
+        else
+          showMessage = true
 
-        deferred = $q.defer()
-        $docflowActions.send currentAction = new $docflowActions.Action(id, name, deferred.promise)
+        if (showMessage)
+          deferred = $q.defer()
+          $docflowActions.send currentAction = new $docflowActions.Action(id, name, deferred.promise)
 
         return $http(method: 'POST', url: url, data: data)
         .then(
@@ -79,18 +89,23 @@ module.factory '$docflowClient',
             if data.code == 'Ok'
               if name == 'create'
                 createdDoc = data.doc
-              deferred.resolve(data.message)
-              currentAction = null
+              if data.file
+                $("<iframe>").hide().prop("src", "/api/download/#{data.file}").appendTo("body");
+              if deferred
+                deferred.resolve(data.message)
+                currentAction = null
               return data
             else
-              deferred.reject(data.message)
-              currentAction = null
+              if deferred
+                deferred.reject(data.message)
+                currentAction = null
               return $q.reject(resp)
           ),
           ((resp) ->
             # TODO: Later, provide more details on Http level error
-            deferred.reject()
-            currentAction = null
+            if deferred
+              deferred.reject()
+              currentAction = null
             return
           )))
       })]

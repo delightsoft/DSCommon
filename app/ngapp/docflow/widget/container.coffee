@@ -5,10 +5,10 @@ module.directive 'docflowContainer',
   controller = null
   return {
     restrict: 'A'
-    controller: (($scope) ->
+    controller: ['$scope', (($scope) ->
       @count = 0
       controller = @
-      return)
+      return)]
     link: ($scope, element, attrs) ->
       controller.item = ((visible) ->
         prevVisible = !!@count

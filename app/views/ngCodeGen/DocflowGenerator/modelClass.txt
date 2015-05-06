@@ -1,0 +1,355 @@
+package models;
+
+${fingerprint}
+
+import code.docflow.DocflowConfig;
+import code.docflow.action.ActionParams;
+import code.docflow.model.DocType;
+import code.docflow.model.State;
+import code.docflow.queries.FiltersEnum;
+import code.docflow.queries.SortOrdersEnum;
+import code.docflow.jsonBinding.annotations.field.*;
+import code.docflow.jsonBinding.annotations.doc.*;
+import code.docflow.docs.Document;
+import code.docflow.docs.DocumentSimple;
+import code.docflow.docs.DocumentPersistent;
+import code.docflow.docs.DocumentVersioned;
+import code.docflow.types.DocumentRef;
+import code.docflow.utils.EnumCaseInsensitiveIndex;
+import org.hibernate.annotations.*;
+import org.joda.time.*;
+import play.db.jpa.GenericModel;
+import play.exceptions.UnexpectedException;
+
+import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.CascadeType;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import static com.google.common.base.Preconditions.*;
+
+%{
+    def isReport = entity.type.toString() == 'REPORT' || entity.type.toString() == 'REPORT_STRUCTURE'
+    def isEntity = !isReport
+    def isDocument = entity.type.toString() != 'SUBTABLE' && entity.type.toString() != 'STRUCTURE' && entity.type.toString() != 'REPORT_STRUCTURE'
+
+    T = "    "; // one tab
+
+    if (isEntity && entity.type.toString() != 'STRUCTURE')
+     out.println "@Entity(name = \"${entity.tableName}\")"
+
+    if (entity.type.toString() == "SUBTABLE")
+        out.println "@JsonPartOfStructure(fkField = \"${entity.fkField.name}\")"
+
+    if (entity.type.toString() == "STRUCTURE")
+        out.println "@Embeddable"
+
+    out.print "public class ${entity.name}"
+
+    switch (entity.type.toString()) {
+        case "LIGHT_DOCUMENT": out.print " extends DocumentPersistent"; break
+        case "SIMPLE_DOCUMENT": out.print " extends DocumentSimple"; break
+        case "DOCUMENT": out.print " extends DocumentVersioned"; break
+        case "REPORT": out.print " extends Document"; break
+        case "SUBTABLE": out.print " extends GenericModel"; break
+    }
+
+    out.println " {"
+    if (isEntity && entity.type.toString() != 'STRUCTURE') {
+        out.println()
+        out.println T + "public static final String TABLE = \"${entity.tableName}\";"
+    }
+
+    // fields
+    def hasStateField = false
+    entity.fields.each { field ->
+
+        switch (field.implicitFieldType.toString()) {
+            case "id":
+                out.println()
+                out.println T + "@Id"
+                if (targetDb == 'mysql')
+                    out.println T + "@GeneratedValue(strategy = GenerationType.AUTO)"
+                else if (targetDb == 'mssql')
+                    out.println T + "@GeneratedValue(strategy = GenerationType.AUTO)"
+                else { // otherwise, it's postgres
+                    out.println T + "@SequenceGenerator(name = \"${entity.tableName}_seq\", sequenceName = \"${entity.tableName}_seq\", initialValue = 1, allocationSize = 1)"
+                    out.println T + "@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = \"${entity.tableName}_seq\")"
+                }
+                out.println T + "public long id;"
+                return;
+            case "fk":
+                out.println()
+                out.println T + "@ManyToOne(fetch = FetchType.LAZY)"
+                out.println T + "@OnDelete(action = OnDeleteAction.CASCADE)"
+                out.println T + "public ${entity.outerStructure.name} ${field.name};"
+                return;
+            case "i":
+                out.println()
+                out.println T + "@JsonIndex"
+                out.println T + "public short i;"
+                return;
+            case "rev":
+                if (entity.type.toString() == "LIGHT_DOCUMENT" || entity.type.toString() == "SIMPLE_DOCUMENT") {
+                    out.println()
+                    out.println T + "@Version";
+                    out.println T + "public int rev;";
+                    return;
+                }
+                // fallthru
+            case "creator":
+            case "created":
+            case "modified":
+            case "deleted":
+                // those fld are defined in code.docflow.docs.DocumentVersioned or in code.docflow.docs.DocumentSimple
+                return;
+            case "state":
+                hasStateField = true;
+                out.println()
+                out.println T + "@Enumerated(EnumType.STRING)"
+                out.println T + "@Column(length = 100, nullable = false)"
+                out.println T + "public States state = States.NEW;"
+                return;
+        }
+
+        out.println()
+
+        if (isEntity && field.calculated)
+            out.println T + '@Transient'
+
+        field.smartTag 'ngCodeGen.model', this, [entity: isEntity, targetDb: targetDb]
+
+        if (field.type.toString() == "enum" && field.udtType == null) {
+            out.println "    public enum ${code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)} {"
+            field.strValues.values().eachWithIndex { item, i ->
+                out.print "        ${code.docflow.utils.NamesUtil.wordsToUpperUnderscoreSeparated(item.name)}(\"${item.name}\")"
+                if (i < (field.strValues.size() - 1))
+                    out.println ","
+             }
+             out.println ";"
+             out.println()
+             out.println "        private final String name;"
+             out.println "        private ${code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)}(String name) { this.name = name; }"
+             out.println "        public String toString() { return name; }"
+             out.println "    }"
+        }
+    }
+
+    if (entity.type.toString() != 'SUBTABLE' && entity.type.toString() != 'STRUCTURE' && entity.type.toString() != 'REPORT_STRUCTURE') {
+        def docType = entity.document
+
+        // states
+        out.println()
+        out.println T + "public enum States {"
+        docType.statesArray.eachWithIndex { state, i ->
+            out.println T + T + state.name.wordsToUpperUnderscoreSeparated() + '("' + state.name + '", ' + state.index + ')' + ((i + 1) == docType.statesArray.size() ? ';' : ',')
+        }
+        out.println T + T + 'public final int index;'
+        out.println T + T + 'private final String name;'
+        out.println T + T + 'private States(String name, int index) { this.name = name; this.index = index; }'
+        out.println T + T + 'public String toString() { return name; }'
+        out.println T + '}'
+        out.println()
+        out.println T + "public static EnumCaseInsensitiveIndex<States> _states = new EnumCaseInsensitiveIndex<States>(States.class);"
+
+        // filters
+        if (docType.filters != null) {
+            out.println()
+            out.println T + "public enum Filters implements FiltersEnum {"
+            docType.filters.eachWithIndex { item, i ->
+                out.print T + T + item.value.name.wordsToUpperUnderscoreSeparated() + '("' + item.value.name + '"'
+                if (item.value.where)
+                    out.print ', "' + item.value.where.replace('\"', '\\\"') + '"'
+                out.println ')' + ((i + 1) == docType.filters.size() ? ';' : ',')
+            }
+            out.println T + T + 'private final String name;'
+            out.println T + T + 'public final String where;'
+            out.println T + T + 'private Filters(String name) { this.name = name; this.where = null; }'
+            out.println T + T + 'private Filters(String name, String where) { this.name = name; this.where = where; }'
+            out.println T + T + 'public String toString() { return name; }'
+            out.println T + T + '@Override public String getWhere() { return where; }'
+            out.println T + "}"
+            out.println()
+            out.println T + "public static EnumCaseInsensitiveIndex<Filters> _filters = new EnumCaseInsensitiveIndex<Filters>(Filters.class);"
+        }
+
+        // sort orders
+        if (docType.sortOrders != null) {
+            out.println()
+            out.println T + "public enum SortOrders implements SortOrdersEnum {"
+            docType.sortOrders.eachWithIndex { item, i ->
+                out.print T + T + item.value.name.wordsToUpperUnderscoreSeparated() + '("' + item.value.name + '"'
+                if (item.value.sortOrder)
+                    out.print ', "' + item.value.sortOrder.replace('\"', '\\\"') + '"'
+                out.println ')' + ((i + 1) == docType.sortOrders.size() ? ';' : ',')
+            }
+            out.println T + T + 'private final String name;'
+            out.println T + T + 'public final String orderBy;'
+            out.println T + T + 'private SortOrders(String name) { this.name = name; this.orderBy = null; }'
+            out.println T + T + 'private SortOrders(String name, String orderBy) { this.name = name; this.orderBy = orderBy; }'
+            out.println T + T + 'public String toString() { return name; }'
+            out.println T + T + '@Override public String getOrderBy() { return orderBy; }'
+            out.println T + "}"
+            out.println()
+            out.println T + "public static EnumCaseInsensitiveIndex<SortOrders> _sortOrders = new EnumCaseInsensitiveIndex<SortOrders>(SortOrders.class);"
+        }
+
+        // fields
+        if (docType.allFields.size() > 0) {
+
+        out.println()
+        out.println T + "public enum Fields {"
+        docType.allFields.eachWithIndex { field, i ->
+            out.println T + T + field.fullname.replace('.', '_').wordsToUpperUnderscoreSeparated() + '("' + field.name + '", ' + field.index + ')' + ((i + 1) == docType.allFields.size() ? ';' : ',')
+        }
+        out.println T + T + 'public final int index;'
+        out.println T + T + 'private final String name;'
+        out.println T + T + 'private Fields(String name, int index) { this.name = name; this.index = index; }'
+        out.println T + T + 'public String toString() { return name; }'
+        out.println T + '}'
+        out.println()
+        out.println T + "public static EnumCaseInsensitiveIndex<Fields> _fields = new EnumCaseInsensitiveIndex<Fields>(Fields.class);"
+        }
+
+        // actions
+        out.println()
+        out.println T + "public enum Actions {"
+        docType.actionsArray.eachWithIndex { action, i ->
+            out.println T + T + action.name.wordsToUpperUnderscoreSeparated() + '("' + action.name + '", ' + action.index + ')' + ((i + 1) == docType.actionsArray.size() ? ';' : ',')
+        }
+        out.println T + T + 'public final int index;'
+        out.println T + T + 'private final String name;'
+        out.println T + T + 'private Actions(String name, int index) { this.name = name; this.index = index; }'
+        out.println T + T + 'public String toString() { return name; }'
+        out.println T + '}'
+        out.println()
+        out.println T + "public static EnumCaseInsensitiveIndex<Actions> _actions = new EnumCaseInsensitiveIndex<Actions>(Actions.class);"
+
+        // relations
+        if (docType.relations != null && docType.relations.size() > 0) {
+            out.println()
+            out.println T + "public enum Relations {"
+            docType.relations.eachWithIndex { item, i -> def relation = item.value
+                out.println T + T + relation.name.wordsToUpperUnderscoreSeparated() + '("' + relation.name + '", ' + relation.index + ')' + ((i + 1) == docType.relations.size() ? ';' : ',')
+            }
+            out.println T + T + 'public final int index;'
+            out.println T + T + 'private final String name;'
+            out.println T + T + 'private Relations(String name, int index) { this.name = name; this.index = index; }'
+            out.println T + T + 'public String toString() { return name; }'
+            out.println T + '}'
+            out.println()
+            out.println T + "public static EnumCaseInsensitiveIndex<Relations> _relations = new EnumCaseInsensitiveIndex<Relations>(Relations.class);"
+        }
+
+        // actions params, if such
+        docType.actionsArray.each { action -> if (action.params == null) return
+            out.println()
+            out.println "public static class ${action.paramsClassName} extends ActionParams {"
+            action.params.each { entry -> def param = entry.value
+                out.println()
+                param.smartTag 'ngCodeGen.model', this, [entity: false, targetDb: targetDb]
+
+                if (param.type.toString() == "enum" && param.udtType == null) {
+                    out.println "    public enum ${code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(param.name)} {"
+                    param.strValues.values().eachWithIndex { item, i ->
+                        out.print "        ${code.docflow.utils.NamesUtil.wordsToUpperUnderscoreSeparated(item.name)}(\"${item.name}\")"
+                        if (i < (param.strValues.size() - 1))
+                            out.println ","
+                     }
+                     out.println ";"
+                     out.println()
+                     out.println "        private final String name;"
+                     out.println "        private ${code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(param.name)}(String name) { this.name = name; }"
+                     out.println "        public String toString() { return name; }"
+                     out.println "    }"
+                }
+            }
+            out.println '};'
+        }
+    }
+
+    if (isDocument) {
+        out.println()
+        out.println T + "private static DocType _type;"
+        out.println()
+        out.println T + "public static DocType _type() {"
+        out.println T + T + "if (_type == null) {"
+        out.println T + T + T + "_type = DocflowConfig.instance.documents.get(\"${entity.name.toUpperCase()}\");"
+        out.println T + T + T + "_resetQueue.add(new ResetForTest() { @Override public void reset() { _type = null; }});"
+        out.println T + T + "}"
+        out.println T + T + "return _type;"
+        out.println T + "}"
+        out.println()
+        out.println T + "@Override"
+        out.println T + "public DocType _docType() {"
+        out.println T + T + "return _type();"
+        out.println T + "}"
+    }
+
+    if (isDocument && !isReport) {
+    if (entity.isMultipleState()) { }%
+    @Override
+    public State _state() {
+        if (_state == null || !_state.name.equals(state.toString()))
+            _state = _docType().statesArray[state.index];
+        return _state;
+    }
+
+    @Override
+    public void _updateState(State newState) {
+        state = _states.get(newState.name);
+        checkNotNull(state, "Unknown state: %s", newState.name);
+    }%{ }
+    else { }%
+    @Override
+    public State _state() {
+        if (_state == null || _isPersisted() ^ _state.name.equals(States.PERSISTED.toString()))
+            _state = _docType().statesArray[_isPersisted() ? States.PERSISTED.index : States.NEW.index];
+        return _state;
+    }
+
+    @Override
+    public void _updateState(State newState) {
+        States state = _states.get(newState.name);
+        checkNotNull(state, "Unknown state: %s", newState.name);
+    }
+
+%{  }}
+    if (entity.type.toString() == "REPORT") { }%
+    @Transient
+    @Override
+    public State _state() {
+        if (_state == null)
+            _state = _docType().statesArray[States.PERSISTED.index];
+        return _state;
+    }
+
+    @Override
+    public String _fullId() {
+        return "";
+    }
+
+    @Override
+    public DocumentRef _ref() {
+        return DocumentRef.NULL;
+    }
+%{  }
+    if (entity.type.toString() == "LIGHT_DOCUMENT" ||
+        entity.type.toString() == "SIMPLE_DOCUMENT" ||
+        entity.type.toString() == "DOCUMENT") { }%
+    @Override
+    public boolean _isPersisted() {
+        return id > 0;
+    }
+
+    @Override
+    public String _fullId() {
+        return _isPersisted() ? "${entity.document.name}@" + id : "${entity.document.name}";
+    }
+
+    @Override
+    public DocumentRef _ref() {
+        return new DocumentRef(this, "${entity.document.name}", id);
+    }
+%{ } }%}

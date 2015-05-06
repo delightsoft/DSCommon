@@ -1,7 +1,7 @@
 package code.docflow.yaml.converters;
 
-import code.utils.Builder;
-import code.utils.TypeBuildersFactory;
+import code.docflow.utils.Builder;
+import code.docflow.utils.TypeBuildersFactory;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;

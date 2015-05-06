@@ -1,0 +1,10 @@
+%{
+def field = _arg
+def T = "    "; // one tab
+def type = field.udtType != null ? field.enumTypeName : code.docflow.utils.NamesUtil.turnFirstLetterInUpperCase(field.name)
+out.println T + "@Enumerated(EnumType.STRING)"
+out.println T + "@Column(length = 100, nullable = ${field.nullable})"
+out.print T + "public ${type} ${field.name} = ${type}."
+_arg.strValues.values().eachWithIndex { item, i -> if (i == 0) out.print "${code.docflow.utils.NamesUtil.wordsToUpperUnderscoreSeparated(item.name)}" }
+out.print ";" }%
+#{ngCodeGen.getCalculated _arg, type: type /}

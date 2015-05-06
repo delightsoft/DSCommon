@@ -1,0 +1,13 @@
+%{ def field = _arg
+if (field.calculated) {
+    def T = "    "; // one tab
+    def getMethodName = 'get' + field.name.turnFirstLetterInUpperCase()
+    def fieldName = field.fullname.replace('.', '_').wordsToUpperUnderscoreSeparated()
+
+    out.println()
+    out.println T + "public ${_type} ${getMethodName}() {"
+    out.println T + T + "if (_calculatedFields == null || !_calculatedFields.get(Fields.${fieldName}.index))"
+    out.println T + T + T + "calculate(new int[] {Fields.${fieldName}.index});"
+    out.println T + T + "return ${field.name};"
+    out.println T + "}"
+} }%

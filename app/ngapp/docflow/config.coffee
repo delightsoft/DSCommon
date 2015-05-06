@@ -19,8 +19,17 @@ oneTimeCalculatedProp = ((obj, prop, func, configurable) ->
   return)
 
 module.provider '$docflowConfig',
-  ['$docflowUtilsProvider', '$windowProvider', '$injector',
-  (($docflowUtilsProvider, $windowProvider, $injector) ->
+  ['$docflowUtilsProvider', '$windowProvider',
+  (($docflowUtilsProvider, $windowProvider) ->
+
+    provider = @
+
+    templateBase = 'ngApp'
+
+    @changeTemplateBase = ((base) ->
+      templateBase = base
+      return)
+
     # this provider property allows to redefine config in specs
     @docflowConfig = $windowProvider.$get().docflowConfig
     # current user object to be displayed on interface
@@ -30,8 +39,8 @@ module.provider '$docflowConfig',
     oneTimeCalculatedProp @, 'docs', (=>
       # initial preprocessing required
       for docName, docConfig of @docflowConfig.docs
-        if docConfig.$n
-          $docflowUtilsProvider.processDocumentBeforeEditing docConfig.$n
+        if docConfig._n
+          $docflowUtilsProvider.processDocumentBeforeEditing docConfig._n
         for actionName, actionConfig of docConfig.actions
           if actionConfig.params
             actionConfig.params =
@@ -41,6 +50,8 @@ module.provider '$docflowConfig',
     oneTimeCalculatedProp @, 'messages', (=>
       return @docflowConfig.messages || {})
     @$get = ['$location', (($location) =>
+      oneTimeCalculatedProp @, 'templateBase', (=>
+        return templateBase)
       # value of 'debug' parameter from $location. get's initialized in module.run(...)
       prop @, 'debug', (->
         return $location.search().debug)

@@ -1,0 +1,1 @@
+#{ngCodeGen.model.refers _arg, entity: _entity /}

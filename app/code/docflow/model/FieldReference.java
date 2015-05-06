@@ -8,6 +8,10 @@ import java.util.TreeSet;
 public class FieldReference extends Field {
     public String refDocument;
 
+    public FieldReference() {
+        indexFlag = true;
+    }
+
     @Override
     public void mergeTo(Field field) {
         super.mergeTo(field);

@@ -4,7 +4,7 @@ import code.docflow.collections.Item;
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.WithCompositeKeyHandler;
 import code.docflow.yaml.compositeKeyHandlers.ItemCompositeKeyHandler;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
 
 import java.util.LinkedHashMap;
 
@@ -43,6 +43,9 @@ public class RoleDocument extends Item {
      */
     @NotYamlField
     public BitArray actionsMask;
+
+    @NotYamlField
+    public BitArray retrieveMask;
 
     /**
      * View rights for given role and document.

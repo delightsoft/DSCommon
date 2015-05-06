@@ -11,8 +11,6 @@ import java.util.LinkedHashMap;
 
 public class FieldEnum extends Field {
 
-    public boolean multiple;
-
     @TargetField
     public LinkedHashMap<String, FieldEnumItem> strValues;
 
@@ -32,9 +30,6 @@ public class FieldEnum extends Field {
 
         FieldEnum fieldEnum = (FieldEnum) field;
 
-        fieldEnum.multiple = multiple;
-        field.accessedFields.add("MULTIPLE");
-
         fieldEnum.strValues = strValues;
         field.accessedFields.add("STRVALUES");
 
@@ -50,7 +45,6 @@ public class FieldEnum extends Field {
 
     protected void deepCopy(FieldEnum fld) {
         super.deepCopy(fld);
-        fld.multiple = multiple;
         fld.strValues = strValues;
         fld.enumTypeName = enumTypeName;
     }

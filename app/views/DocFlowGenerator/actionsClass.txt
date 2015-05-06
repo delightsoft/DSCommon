@@ -1,7 +1,0 @@
-package docflow.actions;
-
-import models.${document.name};
-
-public class Actions${document.name} {
-
-}

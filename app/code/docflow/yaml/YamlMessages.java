@@ -1,17 +1,21 @@
 package code.docflow.yaml;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.messages.MessageTemplate;
 
 /**
  * Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)
  */
 public class YamlMessages {
+
+    public static final MessageTemplate warning_NoConfigYaml = new MessageTemplate(Result.Ok, "Docflow: There is no 'config.yaml'.");
+
     public static final MessageTemplate error_FileNotFound = new MessageTemplate(Result.Failed, "Docflow: File '%1$s' not found.");
     public static final MessageTemplate error_NoRolesDefinitions = new MessageTemplate(Result.Ok, "Docflow: None role definition files are found.");
     public static final MessageTemplate error_FileSkipped = new MessageTemplate(Result.Ok, "Docflow: File '%1$s' skipped, since same named file presents in prior location.");
 
     public static final MessageTemplate error_InvalidYamlFormat = new MessageTemplate(Result.Failed, "%1$s(%3$s, %4$s): %2$s.");
+    public static final MessageTemplate error_UnexpectedStructureYaml = new MessageTemplate(Result.Failed, "%1$s(%3$s, %4$s): Unexpected: %2$s.");
     public static final MessageTemplate error_WrongValueForField = new MessageTemplate(Result.Failed, "%1$sWrong value for field '%3$s %2$s': %4$s.");
     public static final MessageTemplate error_WrongValueForType = new MessageTemplate(Result.Failed, "%1$sWrong value for type '%2$s': %3$s.");
     public static final MessageTemplate error_InvalidStructure = new MessageTemplate(Result.Failed, "%1$sInvalid structure: %2$s.");
@@ -21,6 +25,8 @@ public class YamlMessages {
     public static final MessageTemplate error_CannotConvertKey = new MessageTemplate(Result.Failed, "%1$sCannot convert key to type '%2$s': %3$s.");
     public static final MessageTemplate error_InvalidRootElementKey = new MessageTemplate(Result.Failed, "%1$sInvalid root element key: %2$s");
     public static final MessageTemplate error_InvalidFieldDescription = new MessageTemplate(Result.Failed, "%1$sInvalid field description: '%2$s'.");
+    public static final MessageTemplate error_InvalidTemplateDescription = new MessageTemplate(Result.Failed, "%1$sInvalid template description: '%2$s'.");
+    public static final MessageTemplate error_InvalidTabDescription = new MessageTemplate(Result.Failed, "%1$sInvalid tab description: '%2$s'.");
     public static final MessageTemplate error_InvalidTransitionFormat = new MessageTemplate(Result.Failed, "%1$sInvalid transition format: '%2$s'.");
     public static final MessageTemplate error_InvalidRoleRightFormat = new MessageTemplate(Result.Failed, "%1$sInvalid role right format: '%2$s'.");
     public static final MessageTemplate error_UnknownFlag = new MessageTemplate(Result.Failed, "%1$sUnknown flag '%2$s'.");
@@ -38,9 +44,12 @@ public class YamlMessages {
 
     public static final MessageTemplate error_FileExpectedToBegingWith = new MessageTemplate(Result.Failed, "Expected to begin with '%1$s'.");
 
-    public static final MessageTemplate error_SubjInNotLinkedDocument = new MessageTemplate(Result.Failed, "Document '%1$s': Field named '%2$s' can only be used in document marked as linkedDocument.");
-    public static final MessageTemplate error_LinkedDocumentSubjOfWrongType = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s' has non reference type, required by linkedDocument pattern.");
-    public static final MessageTemplate error_LinkedDocumentMissingSubj = new MessageTemplate(Result.Failed, "Document '%1$s': Not defined 'subj' field requried by linkedDocument pattern.");
+    public static final MessageTemplate error_ConfigWrongSchema = new MessageTemplate(Result.Failed, "Config: Wrong schema value '%1$s'.");
+
+    public static final MessageTemplate error_NoStatesInTaskDoc = new MessageTemplate(Result.Failed, "Document '%1$s': May not specify 'states:' with document flagged 'task'.");
+//    public static final MessageTemplate error_SubjInNotLinkedDocument = new MessageTemplate(Result.Failed, "Document '%1$s': Field named '%2$s' can only be used in document marked as linkedDocument.");
+//    public static final MessageTemplate error_LinkedDocumentSubjOfWrongType = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s' has non reference type, required by linkedDocument pattern.");
+//    public static final MessageTemplate error_LinkedDocumentMissingSubj = new MessageTemplate(Result.Failed, "Document '%1$s': Not defined 'subj' field requried by linkedDocument pattern.");
     public static final MessageTemplate error_StatesInSimpleDocument = new MessageTemplate(Result.Failed, "Document '%1$s': States specified for a simple document.");
     public static final MessageTemplate error_FieldFromGroupNotFound = new MessageTemplate(Result.Failed, "Document '%1$s': Fields group '%2$s': Field '%3$s' not found in the document.");
     public static final MessageTemplate warning_FieldNotMentionedInGroups = new MessageTemplate(Result.Ok, "Document '%1$s': Field '%2$s': Not mentioned in any fields group.");
@@ -74,8 +83,14 @@ public class YamlMessages {
     public static final MessageTemplate error_FieldMustHasMaxLengthAttrBiggerThenLength = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': 'maxLenght' attribute bigger then 'length'.");
     public static final MessageTemplate error_FieldMustHasMinLengthAttrBiggerThenLength = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': 'minLenght' attribute bigger then 'length'.");
     public static final MessageTemplate error_FieldMustHasMinLengthAttrBiggerThenMaxLength = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': 'minLenght' attribute bigger then 'maxLength'.");
+    public static final MessageTemplate error_FieldTextIsOnlyApplicableToString = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': 'text' attribute is only applicable for 'string' or 'text' fields.");
 
     public static final MessageTemplate error_FieldRefersUndefinedDocument = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': Undefined document '%3$s' specified in refers.");
+    public static final MessageTemplate error_FieldMustBeCalculated = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': Field of type '%3$s' must be flagged 'calculated' within persistent document.");
+    public static final MessageTemplate error_FieldAnotherFieldIsText = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': Another field already flagged as 'text'.");
+    public static final MessageTemplate error_FieldFieldTextCannotBeInASubtable = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': Field 'text' cannot be in a subtable.");
+    public static final MessageTemplate error_FieldDocTypeDoesNotSupportText = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': This type of document does not support 'text' field.");
+    public static final MessageTemplate error_FieldFieldTextInBlendTextDoc = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': Document flagged by blendText cannot have field with flag 'text'.");
 
     public static final MessageTemplate error_DocumentStateContainsUndefinedFieldInView = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Undefined field '%3$s' in view attribute.");
     public static final MessageTemplate error_DocumentStateContainsUndefinedFieldsGroupInView = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Undefined fields group '%3$s' in view attribute.");
@@ -92,7 +107,6 @@ public class YamlMessages {
 
     public static final MessageTemplate error_RoleDocumentHasReservedName = new MessageTemplate(Result.Failed, "Role '%1$s': Has reserved role name..");
     public static final MessageTemplate error_RoleDocumentContainsUndefinedDocument = new MessageTemplate(Result.Failed, "Role '%1$s': Document '%2$s' not found.");
-    public static final MessageTemplate error_RoleDocumentFailedToInstantiateRelation = new MessageTemplate(Result.Failed, "Role '%1$s': Document '%2$s': Failed instantiate relation evaluator '%3$s'.");
     public static final MessageTemplate error_RoleDocumentNotDeclaredRelation = new MessageTemplate(Result.Failed, "Role '%1$s': Document '%2$s': Relation '%3$s' was not declared in the document.");
 
     public static final MessageTemplate error_DocumentStateTransitionNoSuchAction = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Transition '%3$s': Action '%3$s' not in document actions.");
@@ -100,7 +114,7 @@ public class YamlMessages {
     public static final MessageTemplate error_DocumentStateTransitionNoSuchEndState = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Transition '%3$s': Refers unknown state '%4$s' as the end state.");
     public static final MessageTemplate error_DocumentStateConditionalTransitionHasNoCorrespondedUnconditionalTransition = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Transition '%3$s': There is no unconditional transition for same action.");
 
-    public static final MessageTemplate error_DocumentNewStateMustComeFirst = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Implicite state '%3$s' must come first.");
+    public static final MessageTemplate error_DocumentNewStateMustComeFirst = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Built-in state '%3$s' must come first.");
     public static final MessageTemplate error_DocumentNewStateCanOnlyHasCreateTransitions = new MessageTemplate(Result.Failed, "Document '%1$s': State '%2$s': Only allowed to have '%3$s' transitions.");
 
     public static final MessageTemplate error_DocumentNoCorrespondedListQueryClass = new MessageTemplate(Result.Failed, "Document '%1$s': No corresponded list query class found '%2$s'.");
@@ -115,12 +129,18 @@ public class YamlMessages {
     public static final MessageTemplate error_DocumentCorrespondedClassMustBeChildOfEntityBase = new MessageTemplate(Result.Failed, "Document '%1$s': Corresponded class '%2$s' must be derived from '%3$s'.");
     public static final MessageTemplate error_DocumentClassFieldNotDefinedInModel = new MessageTemplate(Result.Failed, "Document '%1$s': Class '%3$s': Field: '%4$s': Field '%2$s' not defined in model.");
     public static final MessageTemplate error_DocumentModelFieldNotFoundInClass = new MessageTemplate(Result.Failed, "Document '%1$s': Field '%2$s': Not found in class '%3$s' (or it's related classes).");
-    public static final MessageTemplate error_DocumentQueryInvalidParameters = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s': Invalid method parameters.");
+    public static final MessageTemplate error_DocumentQueryInvalidParameters = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s': Query must be implemented by method '%4$s' in class '%3$s'.");
     public static final MessageTemplate error_DocumentRelationServiceActionMustBeImplemented = new MessageTemplate(Result.Failed, "Document '%1$s': Relation '%2$s': Relation must be implemented by method '%4$s' in class '%3$s'.");
     public static final MessageTemplate error_DocumentRelationExpectedToHaveSignature = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s': Expected to have signature '%3$s'.");
     public static final MessageTemplate error_DocumentPreconditionExpectedToHaveSignature = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s': Expected to have signature '%3$s'.");
     public static final MessageTemplate error_DocumentPreconditionMustBeImplemented = new MessageTemplate(Result.Failed, "Document '%1$s': Precondition '%2$s': Must be implemented by method '%4$s' in class '%3$s'.");
     public static final MessageTemplate error_DocumentIsNotMentionedInAnyRole = new MessageTemplate(Result.Warning, "Document '%1$s': Document is not mentioned in any role.");
+    public static final MessageTemplate error_DocumentDocTypeTextMethodNotApplicable = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s': Document type does not support text field.");
+    public static final MessageTemplate error_DocumentBlendFlagTextMethodNotApplicable = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s': Document has no flag blendText.");
+    public static final MessageTemplate error_DocumentTextMethodMissing = new MessageTemplate(Result.Failed, "Document '%1$s': Method '%2$s' must be implemented for blendText document.");
+
+    public static final MessageTemplate error_DocumentTaskExpectedToHaveSignature = new MessageTemplate(Result.Failed, "Document '%1$s': Task implementation expected to have signature '%3$s'.");
+    public static final MessageTemplate error_DocumentTaskMustBeImplemented = new MessageTemplate(Result.Failed, "Document '%1$s': Task must be implemented by method '%3$s' in class '%2$s'.");
 
     public static final MessageTemplate error_UDTypeHasUnknownType = new MessageTemplate(Result.Failed, "UDType '%1$s': Has unknown type '%2$s'.");
     public static final MessageTemplate error_UDTypeCyclingDependenciesWithTypes = new MessageTemplate(Result.Failed, "UDType '%1$s': Part of cycling dependencies with types: %2$s.");
@@ -128,13 +148,20 @@ public class YamlMessages {
     public static final MessageTemplate error_InvalidMessageDescription = new MessageTemplate(Result.Failed, "%1$sInvalid message description: '%2$s'.");
     public static final MessageTemplate error_UnknownMessageType = new MessageTemplate(Result.Failed, "%1$sInvalid message type: '%2$s'.");
     public static final MessageTemplate error_MessageUnknownParameter = new MessageTemplate(Result.Failed, "Message '%1$s': Unknwon parameter '%2$s'.");
+    public static final MessageTemplate error_MessageUnknownModifier = new MessageTemplate(Result.Failed, "Message '%1$s': Unknwon formatter '%2$s' in parameter '%3$s'.");
+    public static final MessageTemplate error_MessageMustHaveAtLeastOneVariantOfText = new MessageTemplate(Result.Warning, "Message '%1$s': Must have at least one vartiant of text.");
+    public static final MessageTemplate warning_MessageShouldHaveEnLocalization = new MessageTemplate(Result.Warning, "Message '%1$s': Should have 'en' localization for system logging.");
 
     public static final MessageTemplate error_DocumentTemplateFieldNotFound = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Field '%3$s' not defined within document.");
     public static final MessageTemplate error_DocumentTemplateNotDefinedTemplate = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Field '%3$s': Template '%5$s' not defined in document '%4$s'.");
-    public static final MessageTemplate error_DocumentTemplateImplicitTemplateOverride = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': It's implicit template what cannot be overriden.");
+    public static final MessageTemplate error_DocumentTemplateBuiltInTemplateOverride = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': It's built-in template what cannot be overriden.");
 
     public static final MessageTemplate error_DocumentTemplateTabUnknownDocumentType = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Tab '%3$s': Unknown document type '%4$s'.");
     public static final MessageTemplate error_DocumentTemplateTabTemplateNotFoundInDocumentType = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Tab '%3$s': Template '%5$s' not found in the document type '%4$s'.");
+    public static final MessageTemplate error_DocumentTemplateTabFieldsMayOnlyBeSpecifiedForRootDocumentType = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Tab '%3$s': 'fields' may only be specified to root document type '%1$s'.");
+    public static final MessageTemplate error_DocumentTemplateTabFieldsContainsMissingField = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Tab '%3$s': There are no field '%4$s' in the document type.");
+    public static final MessageTemplate error_DocumentTemplateTabFieldAlreadySpecifiedInAnotherTab = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Tab '%3$s': Field '%4$s' already specified in another tab.");
+    public static final MessageTemplate error_DocumentTemplateAllFieldsSplittedBetweenTabs = new MessageTemplate(Result.Warning, "Document '%1$s': Template '%2$s': All fields of the document splitted between tabs. Main tab remains empty.");
     public static final MessageTemplate error_DocumentTemplateColumnHasUnexpectedName = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Column '%3$s': Has unexpected name.");
     public static final MessageTemplate error_DocumentTemplateColumnNoSuchField = new MessageTemplate(Result.Failed, "Document '%1$s': Template '%2$s': Column '%3$s': Field with given name is not found in the document.");
 }

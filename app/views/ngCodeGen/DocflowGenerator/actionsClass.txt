@@ -1,0 +1,7 @@
+package docflow.actions;
+
+import models.${docType.name};
+
+public class Actions${docType.name} {
+
+}

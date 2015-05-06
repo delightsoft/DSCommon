@@ -10,4 +10,7 @@ import code.docflow.yaml.compositeKeyHandlers.RootElementCompositeKeyHandler;
 
 @WithCompositeKeyHandler(RootElementCompositeKeyHandler.class)
 public class RootElement extends Item {
+    public DocflowModule module;
+    public String sourceFile;
+    public String source;
 }

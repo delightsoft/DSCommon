@@ -1,0 +1,13 @@
+%{
+def field = _arg
+def T = "    "; // one tab
+if (field.indexFlag) {
+}%    #{ngCodeGen.model._index _arg /}
+%{ }
+if (!field.nullable) {
+    out.print T + "public long ${field.name};" }%
+#{ngCodeGen.getCalculated _arg, type:'long' /}%{
+} else {
+    out.print T + "public Long ${field.name};" }%
+#{ngCodeGen.getCalculated _arg, type:'Long' /}%{
+} }%

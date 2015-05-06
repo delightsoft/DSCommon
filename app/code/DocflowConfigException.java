@@ -3,9 +3,8 @@ package code;
 // Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)
 //
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.yaml.YamlMessages;
-import org.yaml.snakeyaml.Yaml;
 import play.exceptions.PlayException;
 
 public class DocflowConfigException extends PlayException {

@@ -1,6 +1,0 @@
-    #{if _entity}@AttributeOverrides({
-        @AttributeOverride(name = "type", column = @Column(name = "${_arg.name}_type", nullable=${!_arg.dbRequired})),
-        @AttributeOverride(name = "id", column = @Column(name = "${_arg.name}_id", nullable=${!_arg.dbRequired}))
-    })
-    @Embedded
-    #{/}public PolymorphicRef ${_arg.name};

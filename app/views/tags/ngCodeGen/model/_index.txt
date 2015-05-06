@@ -1,0 +1,2 @@
+#{if _arg.indexFlag}@Index(name = "${_arg.entity.tableName + '_' + _arg.name.toLowerCase().replace('.', '_') + '_index'}")
+    #{/}

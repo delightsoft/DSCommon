@@ -1,2 +1,0 @@
-    #{if _entity}@Column(nullable = ${_arg.dbRequired ? "false" : "true"}, columnDefinition="TEXT")
-    #{/}public String ${_arg.name};

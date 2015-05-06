@@ -28,7 +28,7 @@ public class TmplState {
     String color;
 
     @SuppressWarnings("unchecked")
-    public static TmplState buildFor(TmplRoot root, TmplDocument document, State state) {
+    public static TmplState buildFor(TmplModel root, TmplDocument document, State state) {
 
         final TmplState res = new TmplState();
         res.name = state.name;

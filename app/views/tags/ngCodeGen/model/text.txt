@@ -1,0 +1,3 @@
+    #{if _entity && !_arg.calculated}@Column(nullable = ${!_arg.nullable ? "false" : "true"}, columnDefinition="TEXT")
+    #{ngCodeGen.model._index _arg /}#{/}public String ${_arg.name}#{if !_arg.nullable} = ""#{/};
+#{ngCodeGen.getCalculated _arg, type:'String' /}

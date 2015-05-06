@@ -1,0 +1,13 @@
+package docflow.tasks;
+
+import code.docflow.controlflow.Result;
+import code.docflow.api.http.ActionResult;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import models.${docType.name};
+
+public class Task${docType.name} {
+    public static ActionResult doJob(final ${docType.name} task, final ObjectNode update, final Result result) {
+
+        return null;
+    }
+}

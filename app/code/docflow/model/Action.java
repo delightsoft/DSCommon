@@ -2,10 +2,10 @@ package code.docflow.model;
 
 import code.docflow.DocflowConfig;
 import code.docflow.collections.Item;
+import code.docflow.compiler.enums.CrudActions;
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.WithCompositeKeyHandler;
 import code.docflow.yaml.compositeKeyHandlers.ActionCompositeKeyHandler;
-import code.docflow.yaml.compositeKeyHandlers.ItemCompositeKeyHandler;
 
 import java.lang.reflect.Method;
 import java.util.HashSet;
@@ -79,7 +79,7 @@ public class Action extends Item {
     public HashSet<String> accessedFields;
 
     @NotYamlField
-    public DocflowConfig.ImplicitActions implicitAction;
+    public CrudActions implicitAction;
 
     @NotYamlField
     public DocType document;

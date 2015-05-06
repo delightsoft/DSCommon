@@ -1,0 +1,46 @@
+package models;
+
+${fingerprint}
+
+import code.docflow.DocflowConfig;
+import code.docflow.model.DocType;
+import code.docflow.docs.DocumentHistory;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import javax.persistence.*;
+
+@Entity(name = "${docType.historyTableName}")
+public class ${docType.historyEntityName} extends DocumentHistory {
+
+    public static final String TABLE = "${docType.historyTableName}";
+
+    public static DocType _type() {
+        return DocflowConfig.instance.documents.get("${docType.name.toUpperCase()}");
+    }
+
+    @Override
+    public DocType _docType() {
+        return _type();
+    }
+
+    @Override
+    public long getId() {
+        return id;
+    }
+
+    @Id%{
+   if (targetDb == 'mysql') { }%
+    @GeneratedValue(strategy = GenerationType.AUTO)%{
+   } else if (targetDb == 'mssql') { }%
+    @GeneratedValue(strategy = GenerationType.AUTO)%{
+   } else { // otherwise, it's postgres }%
+    @SequenceGenerator(name = "${docType.historyTableName}_seq", sequenceName = "${docType.historyTableName}_seq", initialValue = 1, allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "${docType.historyTableName}_seq")%{
+   } }%
+    public long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    public ${docType.name} document;
+}

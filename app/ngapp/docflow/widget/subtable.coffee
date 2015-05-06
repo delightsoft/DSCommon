@@ -1,4 +1,15 @@
-module = angular.module 'docflow.widget.subtable', ['docflow.config', 'ui.sortable']
+module = angular.module 'docflow.widget.subtable', ['docflow.config']
+
+module.directive 'docflowHideValidation', [
+  (() ->
+    scope: true
+    restrict: 'A'
+    link: (($scope, element, attrs) ->
+      attrs.$observe 'docflowHideValidation', ((v) ->
+        $scope.hideValidation = (v == 'true')
+        return)
+      return)
+  )]
 
 module.directive 'docflowWidgetSubtable', [
   '$docflow', '$http', '$timeout', '$log',
@@ -10,7 +21,7 @@ module.directive 'docflowWidgetSubtable', [
 
       params = {}
 
-      # params for ui-sortable
+      # Params for ui-sortable
       $scope.sortableOptions =
         handle: '.fa-ellipsis-v'
         axis: 'y'
@@ -22,44 +33,66 @@ module.directive 'docflowWidgetSubtable', [
         $log.error 'Missing \'field\' attribute'
         return
 
-      $scope.$watch '$parent.item', ((item)->
-        if !item.$n?[params.field] # it's not editable
-          $scope.list = item[params.field]
-        else
-          newLinePrototype = item.$n[params.field]
-          model = item[params.field]
-          required = angular.isDefined attrs.required
-          $scope.list = list = (item for item in model)
-          $scope.newline = newline = angular.copy newLinePrototype
-          list.push newline
-          $scope.$watch 'newline', ((n) ->
-            if newline
-              newline = null
-            else
-              model.push $scope.newline
-              newline = $scope.newline = angular.copy newLinePrototype
-              list.push newline
-            return), true
-          $scope.remove = (item) ->
+      required = angular.isDefined attrs.required
+
+      # Watch _n for the subtable.  Presents of this value switches between view and edit modes.
+      $scope.$parent.$watch "item._n.#{params.field}", ((newLinePrototype)->
+
+        watchNewline?(); watchNewline = null
+        watchSourceCollection?(); watchSourceCollection = null
+
+        if !newLinePrototype # View only
+          $scope.list = if $scope.$parent.item then $scope.item[params.field] else [] # If item is null then show an empty list
+          return
+
+        # Copy existing list
+        $scope.list = list = (item for item in $scope.$parent.item[params.field])
+
+        # Add new line
+        $scope.newline = newline = angular.copy newLinePrototype
+        list.push newline
+
+        # Watch new line.  If it gets modified then add another one
+        watchNewline = $scope.$watch 'newline', ((n) ->
+          if newline
+            newline = null
+          else
+            $scope.$parent.item[params.field].push $scope.newline
+            $scope.newline = newline = angular.copy newLinePrototype
+            list.push newline
+          return), true
+
+        # Remove a row of subtable
+        $scope.remove = (item) ->
+          if item != newline
+            model = $scope.$parent.item[params.field]
             ind = model.indexOf item
             model.splice ind, 1
             list.splice ind, 1
-          modelUpdated = ((newModel) ->
-            $scope.list = list = angular.copy newModel
-            list.push $scope.newline
-            model = newModel
-            return)
-          $scope.$parent.$watch "item.#{params.field}", ((fld) ->
-            if required
-              ngModel.$setValidity 'required', fld.length != 0
-            if fld.length + 1 != list.length
+
+        # Updates element of subtable model by new data.  Incoming data is matched to existing model by 'id' attr.
+        modelUpdated = ((newModel) ->
+          $scope.list = list = (item for item in newModel)
+          list.push $scope.newline # Place old 'newline' to new list of elements
+          $scope.$parent.item[params.field] = newModel
+          return)
+
+        # Watch source collection.  When collection is changes, update subtable list
+        watchSourceCollection = $scope.$parent.$watch "item.#{params.field}", ((fld) ->
+
+          if required
+            ngModel.$setValidity 'required', fld.length != 0
+
+          if fld.length + 1 != list.length # New list has different length, so invoke update
+            modelUpdated fld
+            return
+
+          for e, i in fld
+            if e != list[i] # Element object was changed, so invoke update
               modelUpdated fld
               return
-            for e, i in fld
-              if e != list[i]
-                modelUpdated fld
-                return
-            return), true
-        return)
+
+          return), true
+        return), false
       return)
   )]

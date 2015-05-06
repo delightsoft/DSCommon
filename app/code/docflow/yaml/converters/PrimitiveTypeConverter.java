@@ -1,8 +1,8 @@
 package code.docflow.yaml.converters;
 
-import code.utils.Builder;
-import code.utils.PrimitiveType;
-import code.utils.TypeBuildersFactory;
+import code.docflow.utils.Builder;
+import code.docflow.utils.PrimitiveType;
+import code.docflow.utils.TypeBuildersFactory;
 import com.google.common.base.Preconditions;
 
 /**

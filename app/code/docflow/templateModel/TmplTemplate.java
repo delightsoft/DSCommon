@@ -5,15 +5,18 @@ package code.docflow.templateModel;
 
 import code.docflow.DocflowConfig;
 import code.docflow.collections.Item;
+import code.docflow.compiler.enums.BuiltInFields;
+import code.docflow.compiler.enums.CrudActions;
 import code.docflow.model.*;
 import code.docflow.rights.DocumentAccessActionsRights;
 import code.docflow.rights.RightsCalculator;
-import code.jsonBinding.JsonTypeBinder;
-import code.utils.BitArray;
+import code.docflow.jsonBinding.JsonTypeBinder;
+import code.docflow.utils.BitArray;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 public class TmplTemplate {
 
@@ -21,6 +24,16 @@ public class TmplTemplate {
      * Document this field belongs to.
      */
     TmplDocument document;
+
+    /**
+     * Source template.
+     */
+    Template srcTemplate;
+
+    /**
+     * If not null, then it's TmplTemplate derived from another by limiting list of fields.  Used for multi-tab document splitting.
+     */
+    TmplTemplate parentTemplate;
 
     /**
      * Title in form for localization.
@@ -37,17 +50,65 @@ public class TmplTemplate {
     ImmutableList<TmplField> fields;
     ImmutableMap<String, TmplField> fieldByName;
 
+    // TODO: Obsolete: This is not going to be used in responsive layout. Consider deletion after 10/1/2014
     ImmutableList<TmplField> firstFields;
     ImmutableList<TmplField> secondFields;
-
-    ImmutableList<TmplAction> actions;
-    ImmutableMap<String, TmplAction> actionByName;
 
     ImmutableList<TmplTab> tabs;
     ImmutableMap<String, TmplTab> tabByName;
 
     ImmutableList<TmplField> columns;
     ImmutableMap<String, TmplField> columnByName;
+
+    /**
+     * Builds limited by fiels list version of TmplTemplate.
+     */
+    public static TmplTemplate buildTabTemplate(Iterable<String> fields, TmplTemplate template) {
+        TmplTemplate res = new TmplTemplate();
+        res.parentTemplate = template;
+        res.document = template.document;
+        res.title = template.title;
+        res.name = template.name;
+        res.screen = template.screen;
+        res.columns = template.columns;
+        res.columnByName = template.columnByName;
+
+        final ImmutableMap.Builder<String, TmplField> fldMapBuilder = ImmutableMap.builder();
+        final ImmutableList.Builder<TmplField> fldListBuilder = ImmutableList.builder();
+        ImmutableList.Builder<TmplField> firstFldListBuilder = null;
+        ImmutableList.Builder<TmplField> secondFldListBuilder = null;
+        if (template.firstFields != template.fields) {
+            firstFldListBuilder = ImmutableList.builder();
+            secondFldListBuilder = ImmutableList.builder();
+        }
+
+        for (String fieldName : fields) {
+            String upperFieldName = fieldName.toUpperCase();
+            TmplField tmplField = template.fieldByName.get(upperFieldName);
+            if (tmplField == null) // Can be hidden field or field inaccessible for specific user
+                continue;
+            fldMapBuilder.put(upperFieldName, tmplField);
+            fldListBuilder.add(tmplField);
+            if (firstFldListBuilder != null)
+                if (!tmplField.second)
+                    firstFldListBuilder.add(tmplField);
+                else
+                    secondFldListBuilder.add(tmplField);
+        }
+
+        res.fields = fldListBuilder.build();
+        res.fieldByName = fldMapBuilder.build();
+        if (firstFldListBuilder == null) {
+            res.firstFields = res.fields;
+            res.secondFields = template.secondFields;
+        } else {
+            res.firstFields = firstFldListBuilder.build();
+            res.secondFields = secondFldListBuilder.build();
+        }
+
+        return res;
+    }
+
 
     @SuppressWarnings("unchecked")
     public static TmplTemplate buildFor(TmplDocument document, DocType docType, Template template,
@@ -56,6 +117,7 @@ public class TmplTemplate {
 
         final TmplTemplate res = new TmplTemplate();
         res.document = document;
+        res.srcTemplate = template;
         res.title = "doc." + document.name + ".tmpl." + (isCreateTemplate ? "create" : template.name);
         res.name = template.name;
         res.screen = template.screen;
@@ -77,8 +139,7 @@ public class TmplTemplate {
                 anySecond = true;
             final TmplField tf = TmplField.buildFor(document, res, null, null, template, field, rights, mask,
                     readonly, rights.viewMask.get(field.index) || (readonly && rights.updateMask.get(field.index)),
-                    readonly ? false : rights.updateMask.get(field.index));
-            tf.document = document;
+                    !readonly && rights.updateMask.get(field.index));
             fldListBuilder.add(tf);
         }
         ImmutableList<TmplField> fields = res.fields = fldListBuilder.build();
@@ -94,17 +155,14 @@ public class TmplTemplate {
                     firstFldListBuilder.add(fld);
             }
             res.firstFields = firstFldListBuilder.build();
-        }
-        else {
+        } else {
             res.firstFields = res.fields;
         }
         res.secondFields = secondFldListBuilder.build();
 
         final ImmutableMap.Builder<String, TmplField> fldMapBuilder = ImmutableMap.builder();
-        for (int i = 0; i < fields.size(); i++) {
-            TmplField tmplField = fields.get(i);
+        for (TmplField tmplField : fields)
             fldMapBuilder.put(tmplField.fullname.toUpperCase(), tmplField);
-        }
         res.fieldByName = fldMapBuilder.build();
 
         final ImmutableList.Builder<TmplAction> actionsListBuilder = ImmutableList.builder();
@@ -113,38 +171,24 @@ public class TmplTemplate {
         if (docType.linkedDocument) {
             // to make possible localization of create button for linked docs, even known that linked
             // document can be create only by assigning to field of its subj
-            fixedActionsMask.set(DocflowConfig.ImplicitActions.CREATE.index, true);
+            fixedActionsMask.set(CrudActions.CREATE.index, true);
         }
-        fixedActionsMask.set(DocflowConfig.ImplicitActions.DELETE.index, true);
-        fixedActionsMask.set(DocflowConfig.ImplicitActions.RECOVER.index, true);
-
-        final BitArray.EnumTrueValues actionsIterator = fixedActionsMask.getEnumTrueValues();
-        int actionIndex;
-        while ((actionIndex = actionsIterator.next()) != -1) {
-            final Action action = docType.actionsArray[actionIndex];
-            final TmplAction ta = TmplAction.buildFor(document, docType, action);
-            ta.document = document;
-            actionsListBuilder.add(ta);
-        }
-        ImmutableList<TmplAction> actions = res.actions = actionsListBuilder.build();
-
-        final ImmutableMap.Builder<String, TmplAction> actionsMapBuilder = ImmutableMap.builder();
-        for (int i = 0; i < actions.size(); i++) {
-            TmplAction tmplAction = actions.get(i);
-            actionsMapBuilder.put(tmplAction.name.toUpperCase(), tmplAction);
-        }
-        res.actionByName = actionsMapBuilder.build();
+        fixedActionsMask.set(CrudActions.DELETE.index, true);
+        fixedActionsMask.set(CrudActions.RECOVER.index, true);
 
         if (template.tabs != null && !isCreateTemplate) {
             final ImmutableList.Builder<TmplTab> tabsListBuilder = ImmutableList.builder();
-            for (TemplateTab tab : template.tabs.values()) {
+
+            tabsListBuilder.add(TmplTab.buildMainTab(template, res)); // Add tab _main
+
+            for (TemplateTab tab : template.tabs.values()) { // Add rest of tabs
 
                 // Rule: When tab refers inaccessible by this user docType, this tab get skipped
                 DocType tabDocType = DocflowConfig.instance.documents.get(tab.docType.toUpperCase());
-                String userRoles = document.root.userRoles;
+                String userRoles = document.model.userRoles;
                 if (userRoles != null) {
                     DocumentAccessActionsRights docTypeRights = RightsCalculator.instance.calculate(tabDocType, userRoles);
-                    if (!docTypeRights.actionsMask.get(DocflowConfig.ImplicitActions.RETRIEVE.index))
+                    if (!docTypeRights.actionsMask.get(CrudActions.RETRIEVE.index))
                         continue;
                 }
 
@@ -167,7 +211,7 @@ public class TmplTemplate {
                 final String fieldName = column.name;
                 TmplField tmplField = null;
                 if (column.name.equalsIgnoreCase(DocflowConfig.FIELD_SELF))
-                    tmplField = TmplField.buildSelfFieldFor(document.root, res, document);
+                    tmplField = TmplField.buildSelfFieldFor(document.model, res, document);
                 else {
                     tmplField = res.fieldByName.get(fieldName.toUpperCase());
                     if (tmplField == null)
@@ -178,10 +222,8 @@ public class TmplTemplate {
             ImmutableList<TmplField> columns = res.columns = columnsListBuilder.build();
 
             final ImmutableMap.Builder<String, TmplField> columnsMapBuilder = ImmutableMap.builder();
-            for (int i = 0; i < columns.size(); i++) {
-                TmplField fld = columns.get(i);
+            for (TmplField fld : columns)
                 columnsMapBuilder.put(fld.name.toUpperCase(), fld);
-            }
             res.columnByName = columnsMapBuilder.build();
         }
 
@@ -198,7 +240,7 @@ public class TmplTemplate {
         else
             rights.updateMask = r.updateMask;
 
-        if ((template.modeMask & JsonTypeBinder.GENERATE_$A) == 0)
+        if ((template.modeMask & JsonTypeBinder.GENERATE__A) == 0)
             rights.actionsMask = new BitArray(r.actionsMask.size());
         else
             rights.actionsMask = r.actionsMask;
@@ -238,11 +280,11 @@ public class TmplTemplate {
     }
 
     public ImmutableList<TmplAction> getActions() {
-        return actions;
+        return document.actions;
     }
 
     public TmplAction getActionByName(String name) {
-        return actionByName.get(name.toUpperCase());
+        return document.getActionByName(name);
     }
 
     public ImmutableList<TmplTab> getTabs() {
@@ -262,6 +304,6 @@ public class TmplTemplate {
     }
 
     public boolean canBeDeleted() {
-        return document.document.fieldByFullname.get(DocflowConfig.ImplicitFields.DELETED.toString().toUpperCase()) != null;
+        return document.document.fieldByFullname.get(BuiltInFields.DELETED.toString().toUpperCase()) != null;
     }
 }

@@ -1,7 +1,7 @@
 package code.docflow.rights;
 
 import code.docflow.model.DocType;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
 
 /**
  * Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)

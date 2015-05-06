@@ -1,6 +1,6 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.model.Transition;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlMessages;
@@ -18,11 +18,12 @@ public class TransitionCompositeKeyHandler implements CompositeKeyHandler<String
     // Pattern: action [preconditions] -> new-state ... , where '[preconditions]' are optional
     static Pattern keyPattern = Pattern.compile("^([^\\[\\-]*)(\\[([^\\]]*)\\])?\\s*->\\s*([^\\s]*)");
 
+    public static final TransitionCompositeKeyHandler INSTANCE = new TransitionCompositeKeyHandler();
+
     public Transition parse(String value, final HashSet<String> accessedFields, Class collectionType, YamlParser parser, final Result result) {
         final Matcher matcher = keyPattern.matcher(value);
         if (!matcher.find()) {
             result.addMsg(YamlMessages.error_InvalidTransitionFormat, parser.getSavedFilePosition(), parser.getSavedValue());
-            parser.skipNextValue();
             return null;
         }
 
@@ -51,7 +52,7 @@ public class TransitionCompositeKeyHandler implements CompositeKeyHandler<String
     @Override
     public String key(Transition transition) {
         if (transition.preconditions == null)
-            return transition.name;
+            return transition.name.toUpperCase();
 
         StringBuilder sb = new StringBuilder();
         sb.append(transition.name);

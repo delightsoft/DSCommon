@@ -1,0 +1,3 @@
+    #{if _entity && !_arg.calculated}@org.hibernate.annotations.Type(type = "org.jadira.usertype.dateandtime.joda.PersistentPeriodAsString")
+    #{ngCodeGen.model._index _arg /}#{/}public Period ${_arg.name};
+#{ngCodeGen.getCalculated _arg, type:'Period' /}

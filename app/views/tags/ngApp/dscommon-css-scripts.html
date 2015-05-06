@@ -1,0 +1,56 @@
+<!-- 3rd party libs -->
+#{lib.jquery /}
+#{lib.jquery-ui /}
+#{lib.jquery-timepicker-addon /}
+#{lib.angular /}
+#{lib.angular-ui /}
+#{lib.angular-ui-router /}
+#{lib.angular-file-uploader /}
+#{lib.lodash /}
+
+<!-- TODO: Remove when docflow.widget.selector will do it's HTML directly, without Select2 jquery component -->
+#{lib.select2 /}
+
+<!-- Docflow configuration, generated based on user rights -->
+<script type="text/javascript">
+    ${code.docflow.javascript.DocflowConfig2JavaScript.build().raw()}
+</script>
+
+<!-- DSCommon scripts -->
+%{ if (play.Play.mode == play.Play.Mode.PROD) { }%
+<script type="text/javascript" src="@{'static/ngApp/js/dscommon.min.js'}"></script>
+%{ } else { }%
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/misc/resizeItemContent.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/type/result.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/actions.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/client.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/editor.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/form.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/httpListener.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/states.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/table.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/tabLinkedDocument.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/ui/utils.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/container.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/datetime.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/enum.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/file.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/id.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/json.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/password.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/phone.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/photocontrol.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/popover.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/scrollspy.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/select2.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/selector.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/state.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/subtable.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/tags.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/textareasize.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/widget/texteditor.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/appCommon.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow/config.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/docflow.js'}"></script>
+<script type="text/javascript" src="@{'static/ngApp/js/coffee/dscommon.js'}"></script>
+%{ } }%

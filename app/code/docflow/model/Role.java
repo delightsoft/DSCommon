@@ -13,6 +13,7 @@ public class Role extends RootElement {
 
     public LinkedHashMap<String, RoleDocument> documents;
 
+    @NotYamlField
     public int index;
 
     @NotYamlField

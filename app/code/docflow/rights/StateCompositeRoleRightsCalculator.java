@@ -1,11 +1,11 @@
 package code.docflow.rights;
 
-import code.docflow.DocflowConfig;
-import code.models.Document;
-import code.models.PersistentDocument;
-import code.users.CurrentUser;
-import code.utils.BitArray;
-import play.exceptions.JavaExecutionException;
+import code.docflow.compiler.enums.CrudActions;
+import code.docflow.docs.Document;
+import code.docflow.docs.DocumentVersioned;
+import code.docflow.users.CurrentUser;
+import code.docflow.utils.BitArray;
+import play.exceptions.UnexpectedException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -38,8 +38,8 @@ class StateCompositeRoleRightsCalculator {
 
     DocumentAccessActionsRights calculate(Document document, CurrentUser currentUser) {
 
-        boolean inActionScope = currentUser.inActionScope;
-        final boolean deleted = document instanceof PersistentDocument ? ((PersistentDocument) document).deleted : false;
+        final boolean inActionScope = currentUser.inActionScope;
+        final boolean deleted = document instanceof DocumentVersioned ? ((DocumentVersioned) document).deleted : false;
 
         if (relationEvaluators == null)
             return inActionScope ? unconditionalRigthsInAction : deleted ? unconditionalRigthsForDeletedObjects : unconditionalRigths;
@@ -57,9 +57,9 @@ class StateCompositeRoleRightsCalculator {
                     index |= (1L << i);
                 }
             } catch (IllegalAccessException e) {
-                throw new JavaExecutionException(e);
+                throw new UnexpectedException(e);
             } catch (InvocationTargetException e) {
-                throw new JavaExecutionException(e);
+                throw new UnexpectedException(e.getCause());
             }
         }
 
@@ -89,8 +89,8 @@ class StateCompositeRoleRightsCalculator {
 
             conditionalRights.put(objIndex, res);
 
-            final boolean isRetrievable = res.actionsMask.get(DocflowConfig.ImplicitActions.RETRIEVE.index);
-            final boolean isDeletable = res.actionsMask.get(DocflowConfig.ImplicitActions.DELETE.index);
+            final boolean isRetrievable = res.actionsMask.get(CrudActions.RETRIEVE.index);
+            final boolean isDeletable = res.actionsMask.get(CrudActions.DELETE.index);
 
             final DocumentAccessActionsRights inAction = new DocumentAccessActionsRights();
             inAction.docType = res.docType;
@@ -109,9 +109,9 @@ class StateCompositeRoleRightsCalculator {
             forDeleted.actionsMask = unconditionalRigthsForDeletedObjects.actionsMask.copy();
             forDeleted.actionsMask.clear();
             if (isRetrievable) {
-                forDeleted.actionsMask.set(DocflowConfig.ImplicitActions.RETRIEVE.index, true);
+                forDeleted.actionsMask.set(CrudActions.RETRIEVE.index, true);
                 if (isDeletable)
-                    forDeleted.actionsMask.set(DocflowConfig.ImplicitActions.RECOVER.index, true);
+                    forDeleted.actionsMask.set(CrudActions.RECOVER.index, true);
             }
             forDeleted.retrieveMask = res.retrieveMask;
 

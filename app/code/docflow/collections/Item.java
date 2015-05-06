@@ -1,8 +1,13 @@
 package code.docflow.collections;
 
+import code.docflow.yaml.annotations.FlagName;
+import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.WithCompositeKeyHandler;
 import code.docflow.yaml.compositeKeyHandlers.ItemCompositeKeyHandler;
 import com.google.common.base.Objects;
+
+import java.util.ArrayList;
+import java.util.Set;
 
 /**
  * Base class for all yaml items.
@@ -11,6 +16,15 @@ import com.google.common.base.Objects;
 public class Item {
 
     public String name;
+
+    @FlagName("final")
+    public boolean _final;
+
+    @FlagName("top")
+    public boolean _top;
+
+    @NotYamlField
+    public Set<String> _groups;
 
     public Item() {
     }

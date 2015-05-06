@@ -1,9 +1,0 @@
-%{
-def field = _arg
-def T = "    "; // one tab
-
-if (field.dbRequired)
-    out.println T + "public boolean ${field.name};"
-else
-    out.println T + "public Boolean ${field.name};"
-}%

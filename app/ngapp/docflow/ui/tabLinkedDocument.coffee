@@ -1,4 +1,8 @@
-module = angular.module 'docflow.ui.tabLinkedDocument', ['docflow.ui.editor', 'docflow.ui.utils', 'docflow.config']
+module = angular.module 'docflow.ui.tabLinkedDocument', [
+  'docflow.config'
+  'docflow.ui.editor',
+  'docflow.ui.utils',
+]
 
 LinkedDocumentTab = null
 
@@ -10,9 +14,10 @@ module.run(
   ['$docflowEditor', '$docflowUtils', '$docflowConfig',
   (($docflowEditor, $docflowUtils, $docflowConfig) ->
 
-    class LinkedDocumentTab
+    class LinkedDocumentTab extends $docflowEditor.Tab
       constructor: ((editor, tabName, tabConfig) ->
-        $docflowEditor.Tab.derive(LinkedDocumentTab, @, editor, tabName, tabConfig)
+        # It's call of parameterized superclass constructure. Coffee 1.7.1 do not support such mechnism over super(...)
+        $docflowEditor.Tab.call @, editor, tabName, tabConfig
         @template = 'form' # this overrides template for action(...)
         return)
       splitDoc: ((doc) ->
@@ -30,11 +35,11 @@ module.run(
         else if canCreate
           @docConfig = docConfig = $docflowConfig.docs[@docType]
           if not docConfig
-            throw Error "Doctype #{@docType} not in docflowConfig"
-          if not docConfig.$n
-            throw Error "Missing $n for docType '#{@docType}' in docflowConfig"
+            throw Error "DocType #{@docType} not in docflowConfig"
+          if not docConfig._n
+            throw Error "Missing _n for type '#{@docType}' in docflowConfig"
           if @config.options?.showNew
-            @item = angular.copy docConfig.$n
+            @item = angular.copy docConfig._n
             @isNew = true
           else
             @visible = false
@@ -71,7 +76,7 @@ module.run(
           throw Error "Cannot create linked document: Field #{@name} already not null."
         if not @canCreate
           throw Error "Cannot create linked document: User has no right to modify field #{@name}."
-        @item = angular.copy @docConfig.$n
+        @item = angular.copy @docConfig._n
         @isNew = true
         @visible = true
         @modified = true

@@ -1,0 +1,11 @@
+package docflow;
+
+import code.docflow.controlflow.Result;
+import code.docflow.messages.MessageContainerClass;
+import code.docflow.messages.MessageTemplate;
+
+@MessageContainerClass
+public class ${className} {
+%{ msgMap.each { item -> def msg = item.value }%
+    public static final MessageTemplate ${msg.fieldName} = new MessageTemplate(Result.${msg.resultCode.name}, "${msg.selectMessageText("en", null).text.replace('\n', '\\n')}", "${fileKey + item.key}");
+%{ } }%}

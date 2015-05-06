@@ -1,6 +1,6 @@
 package code.docflow.yaml.builders;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.yaml.YamlParser;
 import code.docflow.yaml.converters.PrimitiveTypeConverter;
 import org.yaml.snakeyaml.events.Event;

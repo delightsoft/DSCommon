@@ -1,5 +1,7 @@
+list.itemsCount=Всего записей
 
 validation.required=Не заполнено
+validation.emptySubtable=Пустой список
 validation.min=Меньше %d
 validation.max=Больше %d
 validation.minLength=Короче %d символов
@@ -14,7 +16,10 @@ enum.userRoles=enum.userRoles
 struct.location=struct.location
 
 field.message.search.nothing = ничего не найдено
-form.cancel = Отменить
+form.cancel = Отмена
 form.createNew = Создать
 
 auth.googleoauth2=Войти через Google
+
+form.ok = Ok
+form.no = Отмена

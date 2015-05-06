@@ -1,0 +1,2 @@
+    public ${_arg.javaType} ${_arg.name};
+#{ngCodeGen.getCalculated _arg, type:_arg.javaType /}

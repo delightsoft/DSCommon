@@ -1,0 +1,22 @@
+package docflow.queries;
+
+import code.docflow.queries.DocListBuilder;
+import code.docflow.queries.QueryParams;
+import code.docflow.rights.DocumentAccessActionsRights;
+import code.docflow.utils.BitArray;
+import models.${docType.name};
+
+public class Query${docType.name} {
+
+    #{if docType.blendText}public static String text(final ${docType.name} doc) {
+        return doc._fullId();
+    }
+
+    #{/}public static void calculate(final ${docType.name} ${code.docflow.utils.NamesUtil.turnFirstLetterInLowerCase(docType.name)}, final BitArray mask, final DocumentAccessActionsRights rights) {
+    }
+
+    public static DocListBuilder list(final QueryParams params) {
+        final DocListBuilder builder = new DocListBuilder(params);
+        return builder;
+    }
+}

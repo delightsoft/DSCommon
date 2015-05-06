@@ -1,0 +1,4 @@
+    #{if _entity && !_arg.calculated}@Columns(columns = {@Column(name = "${_arg.name}_from"), @Column(name = "${_arg.name}_to")})
+    @org.hibernate.annotations.Type(type = "org.jadira.usertype.dateandtime.joda.PersistentInterval")
+    #{ngCodeGen.model._index _arg /}#{/}public Interval ${_arg.name};
+#{ngCodeGen.getCalculated _arg, type:'Interval' /}

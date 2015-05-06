@@ -1,4 +1,4 @@
-module = angular.module 'docflow.ui.editor', ['docflow.ui.client', 'docflow.config', 'docflow.ui.utils']
+module = angular.module 'docflow.ui.editor', ['docflow', 'docflow.ui.client', 'docflow.config', 'docflow.ui.utils']
 
 module.run ['$docflow', '$docflowEditor', (($docflow, $docflowEditor) ->
   $docflow._setEditor $docflowEditor
@@ -33,13 +33,13 @@ module.provider '$docflowEditor',
           @visible = true
           @config = tabConfig
           if tabConfig
-            @docType = tabConfig.docType
+            @docType = tabConfig.doc
             @template = tabConfig.template
             # TODO: Move this away to some module, which will know all about URLes
-            @angularTmpl = "/tmpl/doc/#{@docType}?t=#{@template}&item=#{editor.docType}&tab=#{tabName}&#{$docflowConfigProvider.tmplParams}"
+            @angularTmpl = "/tmpl/doc/#{@docType}?b=#{$docflowConfig.templateBase}&t=#{@template}&item=#{editor.docType}&tab=#{tabName}&#{$docflowConfigProvider.tmplParams}"
           return)
         name: null
-        controller: (($scope) ->
+        controller: ['$scope', (($scope) ->
           (->
             @scope = $scope
             $scope.$on '$destroy', (=>
@@ -52,7 +52,7 @@ module.provider '$docflowEditor',
               ext()($scope, @)
             return)
           .call($scope.$parent.tab)
-          return)
+          return)]
         setWatcher: (->
           if !@modified and @scope and @item
             @removeWatcher?()
@@ -63,8 +63,26 @@ module.provider '$docflowEditor',
                 @removeWatcher = null
               return), true
           return)
-        splitDoc: angular.noop
-        mergeDoc: angular.noop
+        splitDoc: ((doc) ->
+          return unless @config.fields
+          @item = item = {}
+          for fld in @config.fields
+            if doc.hasOwnProperty(fld)
+              item[fld] = doc[fld]
+              delete doc[fld]
+          if doc._u
+            doc_u = doc._u
+            item._u = u = {}
+            for fld in @config.fields
+              if doc_u.hasOwnProperty(fld)
+                u[fld] = doc_u[fld]
+                delete doc_u[fld]
+          $docflowUtils.processDocumentBeforeEditing(item)
+          return)
+        mergeDoc: ((doc) ->
+          return unless @config.fields
+          angular.extend doc,  $docflowUtils.buildDocumentUpdate(@item)
+          return)
         _modified: false
         Object.defineProperty Tab::, 'modified',
           get: -> @_modified
@@ -92,28 +110,22 @@ module.provider '$docflowEditor',
         callParent: (method, args...) ->
           @.__proto__.__proto__[method].apply(@, args)
 
-      # Note: This to overcome the bug in coffee 1.0 - wrong javascript on child class constructor
-      Tab.derive = ((childClass, self, editor, tabName, tabConfig) ->
-        childClass::__proto__ = Tab::
-        Tab::constructor.call(self, editor, tabName, tabConfig)
-        return)
-
       # main-tab implementation
-      class MainTab # extends Tab
+      class MainTab extends Tab
         constructor: ((editor) ->
-          # it's instead of 'extends Tab', since it's broken in coffee 1.0
-          Tab.derive(MainTab, @, editor, "_main")
+          # It's call of parameterized superclass constructure. Coffee 1.7.1 do not support such mechnism over super(...)
+          Tab.call @, editor, "_main"
           @item = null
           @docType = editor.docType
           @template = editor.template
-          @angularTmpl = "/tmpl/doc/#{@docType}?t=mainTab" # this template is built-in in form.html
+          @angularTmpl = "/tmpl/doc/#{@docType}?b=#{$docflowConfig.templateBase}&t=mainTab" # this template is built-in in form.html
           @editorDlg = null
           return)
         splitDoc: ((doc) ->
           @visible = true
-          @item = doc
-          @scope.item = doc if @scope
+          @item = $docflowUtilsProvider.updateModel @item, doc #  @item first time is null
           $docflowUtilsProvider.processDocumentBeforeEditing(@item)
+          @scope.item = @item if @scope
           return)
         mergeDoc: ((doc) ->
           angular.extend doc, $docflowUtils.buildDocumentUpdate(@item)
@@ -135,8 +147,10 @@ module.provider '$docflowEditor',
           @template = template = 'form'
           if options
             @template = template = options.t if options.t
+            @resultTemplate = if options.resultTemplate then options.resultTemplate else template
           @docConfig = docConfig = $docflowConfig.docs[docType]
           @modified = false
+          @upload = 0
           if not docConfig
             throw Error "Doctype #{docType} not in docflowConfig"
           @templateConfig = templateConfig = docConfig.templates?[template]
@@ -156,6 +170,7 @@ module.provider '$docflowEditor',
           return)
         Editor.Tab = Tab
         scope: null
+        # Note: This controller is used as a function that is why it's not wrapped by array.
         controller: (($scope) ->
           @scope = $scope
           $scope.doc = @doc
@@ -185,15 +200,15 @@ module.provider '$docflowEditor',
         # loads or creates document model.  returns: promise to editor itself
         loadOrCreate: (->
           if @isNew and not @docConfig.newInstance
-            if not @docConfig.$n
-              throw Error "Missing $n for docType '#{@docType}' in docflowConfig"
-            @setDoc @docConfig.$n
+            if not @docConfig._n
+              throw Error "Missing _n for type '#{@docType}' in docflowConfig"
+            @setDoc @docConfig._n
             @modified = true
             return @
           deferred = $q.defer()
           (if @isNew
             $docflowClient.action(@docType, 'newInstance', t: 'form')
-            .then ((resp) -> return resp.doc)
+            .then ((resp) -> return resp.result)
           else
             $docflowClient.get(@docId, t: 'form'))
           .then((doc) =>
@@ -224,7 +239,11 @@ module.provider '$docflowEditor',
           for tabName, tab of @tabs
             if tab.modified
               tab.mergeDoc doc
-          return $docflowClient.action(@doc.id, (if @isNew then 'create' else 'update'), doc: doc, r: @doc.rev, t: 'form')
+          return $docflowClient.action(@doc.id, (if @isNew then 'create' else 'update'),
+            doc: doc
+            r: @doc.rev
+            t: 'form'
+            ot: if @resultTemplate then @resultTemplate else 'form')
           .then((resp) =>
             if @editorDlg
               @editorDlg.close(resp.doc)

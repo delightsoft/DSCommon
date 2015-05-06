@@ -1,0 +1,24 @@
+document DocflowFile simple:
+  fields:
+    - filename              string(100) required derived
+    - title                 string(2000) required derived text
+    - blocked               bool derived
+    - document              ref [_any] derived
+    - field                 string(200) null derived
+
+  states:
+    - new:
+        update: []
+
+  templates:
+    - list:
+        fields:
+          - id
+          - text
+          - blocked
+    - form:
+        mode: L
+        fields:
+          - id
+          - text
+          - blocked

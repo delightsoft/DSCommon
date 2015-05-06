@@ -2,13 +2,16 @@ package code.docflow.model;
 
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.TargetField;
-import code.types.PolymorphicRef;
 
 import java.util.TreeSet;
 
 public class FieldPolymorphicReference extends Field {
     @TargetField
     public String[] refDocuments;
+
+    public FieldPolymorphicReference() {
+        indexFlag = true;
+    }
 
     @Override
     public void mergeTo(Field field) {

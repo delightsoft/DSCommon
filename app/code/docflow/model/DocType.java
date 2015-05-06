@@ -1,9 +1,12 @@
 package code.docflow.model;
 
-import code.docflow.collections.Item;
+import code.docflow.queries.FiltersEnum;
+import code.docflow.queries.SortOrdersEnum;
+import code.docflow.utils.EnumCaseInsensitiveIndex;
 import code.docflow.yaml.annotations.NotYamlField;
-import code.jsonBinding.JsonTypeBinder;
-import code.utils.BitArray;
+import code.docflow.jsonBinding.JsonTypeBinder;
+import code.docflow.utils.BitArray;
+import com.google.common.base.Objects;
 import play.vfs.VirtualFile;
 
 import java.lang.reflect.Method;
@@ -20,6 +23,16 @@ public final class DocType extends RootElement {
 
     public static final String MODELS_PACKAGE = "models.";
 
+    /**
+     * Field flagged as text.
+     */
+    public Field textSourceField;
+
+    /**
+     * 'text' field, if presents.
+     */
+    public Field textField;
+
     public LinkedHashMap<String, Field> fields;
 
     public LinkedHashMap<String, FieldsGroup> fieldsGroups;
@@ -29,7 +42,6 @@ public final class DocType extends RootElement {
     public LinkedHashMap<String, Action> actions;
 
     public LinkedHashMap<String, DocumentRelation> relations;
-
 
     /**
      * List of named filters, to be use in building a list of documents.
@@ -54,6 +66,27 @@ public final class DocType extends RootElement {
      * system information, like user's sessions record that cannot be edited by any user.
      */
     public boolean simple;
+
+    /**
+     * True, if ID only document.  Such documents expected to used for dictionary tables and to too keep
+     * system information, like user's sessions record that cannot be edited by any user.
+     */
+    public boolean light;
+
+    /**
+     * True, if it's task-document.
+     */
+    public boolean task;
+
+    /**
+     * True, if document should have 'rev' field. It's implicit for versioned documents and any document with state.
+     */
+    public boolean rev;
+
+    /**
+     * True, text fields gets calculated by Query&lt;docType%gt;.text(final &lt;docType%gt; doc) method.
+     */
+    public boolean blendText;
 
     /**
      * True, if document participates in linked document relations as a linked document.
@@ -185,6 +218,12 @@ public final class DocType extends RootElement {
     @NotYamlField
     public JsonTypeBinder jsonBinder;
 
+    /**
+     * String Query&lt;docType&gt;.text(final &lt;docType&gt; doc) method.
+     */
+    @NotYamlField
+    public Method textMethod;
+
     @NotYamlField
     public Method calculateMethod;
 
@@ -192,16 +231,16 @@ public final class DocType extends RootElement {
     public TreeMap<String, Method> queryMethods;
 
     @NotYamlField
-    public TreeMap<String, Enum> filterEnums;
+    public TreeMap<String, FiltersEnum> filterEnums;
 
     @NotYamlField
-    public Enum defaultFilterEnum;
+    public FiltersEnum defaultFilterEnum;
 
     @NotYamlField
-    public TreeMap<String, Enum> sortOrderEnums;
+    public TreeMap<String, SortOrdersEnum> sortOrderEnums;
 
     @NotYamlField
-    public Enum defaultSortOrderEnum;
+    public SortOrdersEnum defaultSortOrderEnum;
 
     @NotYamlField
     public String historyTableName;
@@ -218,10 +257,35 @@ public final class DocType extends RootElement {
     @NotYamlField
     public LinkedHashMap<String, Precondition> preconditions;
 
+    @NotYamlField
+    public Method taskEvoluator;
+
+    @NotYamlField
+    public EnumCaseInsensitiveIndex enumStates;
+
+    @NotYamlField
+    public EnumCaseInsensitiveIndex enumFilters;
+
+    @NotYamlField
+    public EnumCaseInsensitiveIndex enumSortOrders;
+
+    @NotYamlField
+    public EnumCaseInsensitiveIndex enumFields;
+
+    @NotYamlField
+    public EnumCaseInsensitiveIndex enumActions;
+
     /**
      * Calculates java full class name of this Document.
      */
     public String getClassName() {
         return MODELS_PACKAGE + name;
+    }
+
+    @Override
+    protected Objects.ToStringHelper toStringHelper() {
+        return super.toStringHelper()
+                .add("simple", simple)
+                .add("linkedDocument", linkedDocument);
     }
 }

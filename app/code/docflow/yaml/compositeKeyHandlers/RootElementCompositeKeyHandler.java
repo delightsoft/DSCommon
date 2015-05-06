@@ -1,6 +1,6 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.model.DocType;
 import code.docflow.model.Role;
 import code.docflow.model.RootElement;
@@ -29,7 +29,6 @@ public class RootElementCompositeKeyHandler implements CompositeKeyHandler<Strin
         Matcher matcher = keyPattern.matcher(value.trim());
         if (!matcher.find()) {
             result.addMsg(YamlMessages.error_InvalidRootElementKey, parser.getSavedFilePosition(), parser.getSavedValue());
-            parser.skipNextValue();
             return null;
         }
         String type = matcher.group(1);
@@ -40,6 +39,11 @@ public class RootElementCompositeKeyHandler implements CompositeKeyHandler<Strin
             res = new DocType();
         else if ("ROLE".equalsIgnoreCase(type))
             res = new Role();
+        else {
+            result.addMsg(YamlMessages.error_InvalidRootElementKey, parser.getSavedFilePosition(), parser.getSavedValue());
+            return null;
+        }
+
         if (res != null)
             res.name = name;
 

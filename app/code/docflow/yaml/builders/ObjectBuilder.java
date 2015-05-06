@@ -1,11 +1,11 @@
 package code.docflow.yaml.builders;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.yaml.YamlMessages;
 import code.docflow.yaml.YamlParser;
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.TargetField;
-import code.utils.NamesUtil;
+import code.docflow.utils.NamesUtil;
 import org.yaml.snakeyaml.events.Event;
 import org.yaml.snakeyaml.events.ScalarEvent;
 

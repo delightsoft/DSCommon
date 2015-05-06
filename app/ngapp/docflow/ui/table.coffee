@@ -1,4 +1,10 @@
-module = angular.module 'docflow.ui.table', ['docflow.ui.utils']
+module = angular.module 'docflow.ui.table', [
+
+  'ui.bootstrap.pagination'
+
+  'docflow.ui.actions'
+  'docflow.ui.utils'
+]
 
 module.constant 'docflowPagingSize', 7
 
@@ -14,14 +20,14 @@ putQueryToUrl = (($docflowUtils, locationSearch, query, urlPrefix) ->
     if k != 'c'
       n = urlPrefix + k
       if angular.isObject v
-        locationSearch[n] = $docflowUtils.encodeUriQuery v.id, true
-      else if v
-        locationSearch[n] = $docflowUtils.encodeUriQuery v, true
+        locationSearch[n] = v.id
+      else if v && !(k == 'p' && v == 1)
+        locationSearch[n] = v
       else
         delete locationSearch[n]
   return locationSearch)
 
-getList = (($http, $docflowUtils, $docflowConfig, docType, pagingSize, params, query, changes) ->
+getList = (($scope, $http, $docflowActions, $docflowUtils, $docflowConfig, $q, docType, pagingSize, params, query, changes) ->
   args = new Array
 
   for p, v of params
@@ -41,94 +47,93 @@ getList = (($http, $docflowUtils, $docflowConfig, docType, pagingSize, params, q
     c = page + Math.round(pagingSize / 2)
     if c <= pagingSize then c = pagingSize + 1
     args.push "c=#{c}"
+
+  if $docflowActions
+    deferred = $q.defer()
+    $docflowActions.send new $docflowActions.Action(docType, 'list', deferred.promise)  # it's a special built-in action
+
   return $http(
     method: 'GET'
     url: "/api/list/#{docType}?#{args.join '&'}&#{$docflowConfig.apiParams}")
   .then ((resp) ->
+    if deferred
+      if !resp.data.hasOwnProperty('code') || resp.data.code == 'Ok'
+        deferred.resolve resp.data.message
+      else
+        deferred.reject resp.data.message
     $docflowUtils.processDocumentsListBeforeEditing resp.data.list
     return resp.data)
   )
 
-module.factory '$docflowTable',
-  ['$http', '$docflowUtils', '$docflowConfig', '$location', 'docflowPagingSize',
-  (($http, $docflowUtils, $docflowConfig, $location, docflowPagingSize) ->
-    getData: (docType, params, urlPrefix) ->
-      query = if urlPrefix then getQueryFromUrl($location.search(), urlPrefix) else {}
-      return getList($http, $docflowUtils, $docflowConfig, docType, docflowPagingSize, params, query)
-      .then (data) ->
-        data.docType = docType
-        data.urlPrefix = urlPrefix
-        data.params = params if params
-        data.pagingSize = docflowPagingSize
-        return data
-  )]
-# End of factory '$docflowTable'
-
 module.directive 'docflowTable',
-  ['$http', '$docflowUtils', '$docflowConfig', '$location', 'docflowPagingSize',
-  (($http, $docflowUtils, $docflowConfig, $location, docflowPagingSize) ->
-    sa = null
-    return { # link:
+  ['$http', '$docflowActions', '$docflowUtils', '$docflowConfig', '$q', '$location', 'docflowPagingSize', '$log',
+  (($http, $docflowActions, $docflowUtils, $docflowConfig, $q, $location, docflowPagingSize, $log) ->
+    restrict: 'E'
+    replace: false
+    transclude: true
+    scope: true
+    controller: ['$scope', '$attrs', (($scope, $attrs) -> # controller is required, to initialize query prior ng-inits in the template
+      $scope.urlPrefix = $attrs.urlPrefix
+      $scope.query = if $scope.urlPrefix then getQueryFromUrl($location.search(), $scope.urlPrefix) else $location.search()
+      $scope.docType = $attrs.docType
+      $scope.pagingSize = $attrs.pagingSize || docflowPagingSize
+      $scope.params = {}
+      $scope.ctrlValues = {}
+      $scope.values = {}
+      $scope.items = null
+      $scope.$watch 'query', ((n, o) ->
+        if n != o
+          angular.copy n, $scope.values
+        return), true
+      return)]
 
-      template: '<div ng-transclude></div>'
-      restrict: 'E'
-      replace: false
-      transclude: true
+    link: (($scope, element, attrs, controller, $transclude) ->
 
-      controller: (($scope) -> # controller is required, to initialize query prior ng-inits in the template
-        $scope.urlPrefix = sa.urlPrefix
-        $scope.query = if $scope.urlPrefix then getQueryFromUrl($location.search(), $scope.urlPrefix) else {}
-        $scope.docType = sa.docType
-        $scope.pagingSize = sa.pagingSize || docflowPagingSize
-        $scope.params = {}
-        $scope.ctrlValues = {}
-        delete sa
-        $scope.values
-        $scope.$watch 'query', ((n, o) ->
-          if n != o
-            angular.copy n, $scope.values
-          return), true
+      if !$transclude
+        $log.error 'Missing transclution content'
+
+      if attrs.data
+        value = $scope.$eval attrs.data
+        if not angular.isObject value
+          throw new Error 'Invalid docflow-table data: #{attrs.data}'
+        angular.extend $scope, value
+        if attrs.onLoad
+          $scope.$eval attrs.onLoad,
+            'list': $scope.list
+      else if attrs.params # params specified as directive attribute. wait for $observe
+        value = $scope.$eval attrs.params
+        if not angular.isObject value
+          throw new Error 'Invalid docflow-table params: #{attrs.params}'
+        $scope.params = value
+        $scope.$evalAsync 'update()'
+      else # if no params and no data attributes, update right away
+        $scope.$evalAsync 'update()'
+
+      $scope.update = ((changes) ->
+        getList($scope, $http, (if $scope.urlPrefix then null else $docflowActions), $docflowUtils, $docflowConfig, $q,
+          $scope.docType, $scope.pagingSize, $scope.params, $scope.query, changes)
+        .then (update) ->
+          $scope.query = query = update.query
+          $scope.list = list = update.list
+          $scope.items = if query.p == query.c then (query.p - 1) * query.s + list?.length else null # Calculate items for last page
+
+          if attrs.onLoad
+            $scope.$eval attrs.onLoad,
+              'list': $scope.list
+          $location.search putQueryToUrl $docflowUtils, $location.search(), $scope.query, $scope.urlPrefix
+          $location.replace()
         return)
 
-      compile: (element, attrs) ->
-        sa = attrs
-        return (($scope, element, attrs) ->
-          if attrs.data
-            value = $scope.$eval attrs.data
-            if not angular.isObject value
-              throw new Error 'Invalid docflow-table data: #{attrs.data}'
-            angular.extend $scope, value
-            if attrs.onLoad
-              $scope.$eval attrs.onLoad,
-                'list': $scope.list
-          else if attrs.params # params specified as directive attribute. wait for $observe
-            value = $scope.$eval attrs.params
-            if not angular.isObject value
-              throw new Error 'Invalid docflow-table params: #{attrs.params}'
-            $scope.params = value
-            $scope.$evalAsync 'update()'
-          else # if no params and no data attributes, update right away
-            $scope.$evalAsync 'update()'
+      $scope.onSelectPage = ((page) ->
+        if page == $scope.query.c # c - checkToPage
+          $scope.update p: -1
+        else
+          $scope.update p: page
+        return)
 
-          $scope.update = ((changes) ->
-            getList($http, $docflowUtils, $docflowConfig, $scope.docType, $scope.pagingSize, $scope.params, $scope.query, changes)
-            .then (update) ->
-              $scope.query = update.query
-              $scope.list = update.list
-              if attrs.onLoad
-                $scope.$eval attrs.onLoad,
-                  'list': $scope.list
-              $location.search putQueryToUrl $docflowUtils, $location.search(), $scope.query, $scope.urlPrefix if $scope.urlPrefix
-              $location.replace()
-            return)
+      $transclude $scope, (clone) ->
+        element.empty()
+        element.append clone
 
-          $scope.onSelectPage = ((page) ->
-            if page == $scope.query.c # c - checkToPage
-              $scope.update p: -1
-            else
-              $scope.update p: page
-            return)
-
-          return)
-    }
+      return)
   )]

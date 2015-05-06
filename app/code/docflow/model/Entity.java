@@ -1,6 +1,8 @@
 package code.docflow.model;
 
 import code.docflow.collections.Item;
+import code.docflow.compiler.enums.BuiltInFields;
+import code.docflow.compiler.enums.EntityType;
 import code.docflow.yaml.annotations.NotYamlField;
 
 import java.util.ArrayList;
@@ -37,4 +39,15 @@ public class Entity extends Item {
 
     @NotYamlField
     public String tableName;
+
+    /**
+     * Calculates java full class name of this Document.
+     */
+    public String getClassName() {
+        return DocType.MODELS_PACKAGE + name;
+    }
+
+    public boolean isMultipleState() {
+        return document.fieldByFullname.get(BuiltInFields.STATE.name()) != null;
+    }
 }

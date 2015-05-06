@@ -5,7 +5,7 @@ import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.TargetField;
 import code.docflow.yaml.annotations.WithCompositeKeyHandler;
 import code.docflow.yaml.compositeKeyHandlers.ItemCompositeKeyHandler;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
 
 /**
  * Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)

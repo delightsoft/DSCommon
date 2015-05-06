@@ -1,0 +1,4 @@
+%{ def _type = _arg.local ? 'LocalDateTime' : 'DateTime';
+}%    #{if _entity && !_arg.calculated}@org.hibernate.annotations.Type(type = "org.jadira.usertype.dateandtime.joda.Persistent${_type}")
+    #{ngCodeGen.model._index _arg /}#{/}public ${_type} ${_arg.name};
+#{ngCodeGen.getCalculated _arg, type: _type /}

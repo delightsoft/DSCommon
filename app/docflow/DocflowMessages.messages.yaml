@@ -22,18 +22,30 @@
     ru: "Документ восстановлен"
     ruHtml: "<docflow-actions-autohide />Документ восстановлен"
 
-- httpInvalidActionParams():
+- httpInvalidActionParams() failed:
     en: "Invalid action params"
 
 - httpActionSucceeded ( actionName ) info:
     en: "Action $actionName succeeded"
     ru: "Действие \"$actionName\" выполнено"
 
+- validationJsonObjectExpected ( part, json ):
+    en: "In '$part' a json object is expected, not '$json'."
+
 - validationFieldRequired ( fldName ):
     en: "'$fldName' required."
 
+- validationFieldUnexpected ( fldName ):
+    en: "'$fldName' unexpected."
+
+- validationFieldUnknown ( fldName ):
+    en: "'$fldName' unknown."
+
 - validationFieldIncorrectValue(fldName, value):
     en: "'$fldName' incorrect value: $value."
+
+- validationFieldIncorrectJson(fldName,  line, col, message):
+    en: "'$fldName' incorrect json: positions ($line, $col): $message."
 
 - validationFieldIncorrectEnumValue(fldName, value):
     en: "'$fldName' incorrect enum value: $value."
@@ -55,6 +67,12 @@
 
 - validationFieldMaxLength(fldName, maxLength):
     en: "'$fldName' cannot be longer than $maxLength."
+
+- validationFieldInvalidEmail(fldName):
+    en: "'$fldName' invalid email value."
+
+- validationFieldInvalidPhone(fldName):
+    en: "'$fldName' invalid phone number."
 
 - validationFieldPattern(fldName, pattern):
     en: "'$fldName' must follow pattern '$pattern'."
@@ -91,3 +109,36 @@
 
 - actionParamsMissingParameter(action, parameterName):
     en: "Action '$action': Missing parameter '$parameterName'"
+
+- validationFieldUnknownDocType(fldName, value):
+    en: "'$fldName' unknow document type: $value."
+
+- validationFieldNoAccessToDocType(fldName, value):
+    en: "'$fldName' no access to document type: $value."
+
+- validationFieldNoAccessToTheDocument(fldName, value):
+    en: "'$fldName' no access to the document: $value."
+
+- validationFieldNoSuchDocument(fldName, value):
+    en: "'$fldName' no such document: $value."
+
+- prohibitedToUpdateVersionedDocumentFromPersistedDocument(doc1, doc2):
+    en: "Due to history consistency it's prohibited to update versioned document ($doc2) from persisted document action ($doc1)."
+
+- cannotDeleteOrRecoverNonVersionedDocument(doc):
+    en: "Cannot delete or recover non versioned document ($doc)."
+
+- failedWithException(exceptionRef):
+    en: "Failed with exception (Ref: $exceptionRef)"
+
+- failureContext(context) info:
+    en: "Failed while $context"
+
+- queryParamInvalidType(param, expectedType, actualType):
+    en: "Parameter '$param': Expected type '$expectedType', but was '$actualType'."
+
+- queryParamInvalidValue(param, value):
+    en: "Parameter '$param': Unexpected value '$value'."
+
+- convertFailed (format, cmdLine):
+    en: "Converter to $format failed: Cmd line: $cmdLine"

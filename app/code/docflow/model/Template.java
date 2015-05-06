@@ -4,8 +4,9 @@ import code.docflow.collections.Item;
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.WithCompositeKeyHandler;
 import code.docflow.yaml.compositeKeyHandlers.TemplateCompositeKeyHandler;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 
@@ -20,8 +21,6 @@ public class Template extends Item {
 
     public LinkedHashMap<String, Item> fields;
 
-    public LinkedHashMap<String, Item> add;
-
     public LinkedHashMap<String, Item> remove;
 
     public LinkedHashMap<String, TemplateField> fieldsTemplates;
@@ -29,6 +28,8 @@ public class Template extends Item {
     public LinkedHashMap<String, TemplateTab> tabs;
 
     public LinkedHashMap<String, Item> columns;
+
+    public LinkedHashMap<Integer, HtmlElement> html;
 
     /**
      * If not null, uses named query in /api/list request.
@@ -47,8 +48,6 @@ public class Template extends Item {
             mode = parent.mode;
         if (!accessedFields.contains("FIELDS"))
             fields = parent.fields;
-        if (!accessedFields.contains("ADD"))
-            add = parent.add;
         if (!accessedFields.contains("REMOVE"))
             remove = parent.remove;
         if (!accessedFields.contains("FIELDSTEMPLATES"))
@@ -92,4 +91,7 @@ public class Template extends Item {
 
     @NotYamlField
     public Template[] templateByField;
+
+    @NotYamlField
+    public HashMap<String, Field> mainTabFields;
 }

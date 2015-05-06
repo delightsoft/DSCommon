@@ -1,3 +1,0 @@
-    #{if _entity}@org.hibernate.annotations.Type(type = "org.joda.time.contrib.hibernate.PersistentDateTime")
-    #{/}@JsonLocalDate
-    public DateTime ${_arg.name};

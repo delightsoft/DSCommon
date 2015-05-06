@@ -1,17 +1,19 @@
 package code.docflow.templateModel;
 
 import code.docflow.DocflowConfig;
-import code.docflow.collections.Item;
+import code.docflow.compiler.enums.BuiltInTypes;
 import code.docflow.model.*;
 import code.docflow.rights.DocumentAccessActionsRights;
 import code.docflow.yaml.compositeKeyHandlers.FieldCompositeKeyHandler;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
+import code.docflow.utils.NamesUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import play.exceptions.TemplateExecutionException;
 import play.exceptions.TemplateNotFoundException;
 import play.templates.BaseTemplate;
 import play.templates.GroovyTemplate;
+import play.templates.TagContext;
 import play.templates.TemplateLoader;
 
 import java.util.HashMap;
@@ -33,7 +35,7 @@ public class TmplField {
     public static final String FIELD_LINK = "." + FIELD_ROOT;
     public static final String ENUM_LINK = "." + ENUM_ROOT;
 
-    public static String typeRoot(Field.Type fieldType) {
+    public static String typeRoot(BuiltInTypes fieldType) {
         switch (fieldType) {
             case STRUCTURE:
                 return STRUCT_ROOT;
@@ -54,6 +56,11 @@ public class TmplField {
      * Owner template.
      */
     TmplTemplate ownerTemplate;
+
+    /**
+     * Owner action. Not null, if field is part of action params.
+     */
+    TmplAction ownerAction;
 
     /**
      * Title in form for localization.
@@ -113,6 +120,8 @@ public class TmplField {
 
     boolean hidden;
 
+    boolean local;
+
     boolean derived;
 
     Boolean required;
@@ -125,11 +134,12 @@ public class TmplField {
     ImmutableList<TmplField> fields;
     ImmutableMap<String, TmplField> fieldByName;
 
-    Boolean multiple;
     ImmutableList<TmplEnumValue> enumValues;
     ImmutableMap<String, TmplEnumValue> enumValueByName;
 
     ImmutableList<String> tagsSequence;
+
+    String classAttr;
 
     boolean second;
 
@@ -148,6 +158,7 @@ public class TmplField {
 
         res.document = tmplDoc;
         res.ownerTemplate = ownerTemplate;
+        res.ownerAction = action;
 
         res.name = fld.name;
 
@@ -156,6 +167,8 @@ public class TmplField {
         res.derived = fld.derived;
 
         res.hidden = fld.hidden;
+
+        res.local = fld.local;
 
         if (template != null)
             res.template = template.templateNameByField[fld.index];
@@ -179,7 +192,7 @@ public class TmplField {
         if (fld.udtType != null) {
             res.type = fld.udtType;
             res.udtType = fld.udtTypeRef != null;
-        } else if (fld.type == Field.Type.REFERS) {
+        } else if (fld.type == BuiltInTypes.REFERS || fld.type == BuiltInTypes.FILE) {
             res.type = "_" + ((FieldReference) fld).refDocument;
             if (update)
                 res.update = "item." + res.name;
@@ -193,13 +206,13 @@ public class TmplField {
         else // it's action parameter
             res.title = (rootTitle != null ? rootTitle : action.title) + TmplAction.ACTION_PARAM_LINK + fld.name;
 
-        if (fld.type == Field.Type.TAGS) {
+        if (fld.type == BuiltInTypes.TAGS) {
             FieldStructure fieldStructure = (FieldStructure) fld;
             final FieldReference tag = (FieldReference) fieldStructure.fields.get(FieldCompositeKeyHandler.FIELD_TAG);
             res.tagsDocType = tag.refDocument;
         }
 
-        if (fld.type == Field.Type.STRUCTURE || fld.type == Field.Type.SUBTABLE) {
+        if (fld.type == BuiltInTypes.STRUCTURE || fld.type == BuiltInTypes.SUBTABLE) {
             FieldStructure fieldStructure = (FieldStructure) fld;
 
             String newRootTitle = fieldStructure.udtTypeRef != null ? typeRoot(fld.type) + fieldStructure.udtType : res.title;
@@ -214,8 +227,7 @@ public class TmplField {
                 final TmplField tf = TmplField.buildFor(tmplDoc, ownerTemplate, null, newRootTitle, template, field, rights, mask,
                         readonly,
                         rights.viewMask.get(field.index) || (readonly && rights.updateMask.get(field.index)),
-                        readonly ? false : rights.updateMask.get(field.index));
-                tf.document = tmplDoc;
+                        !readonly && rights.updateMask.get(field.index));
                 fldListBuilder.add(tf);
             }
             ImmutableList<TmplField> fields = res.fields = fldListBuilder.build();
@@ -229,20 +241,16 @@ public class TmplField {
 
             res.single = fieldStructure.single;
 
-        } else if (fld.type == Field.Type.ENUM) {
+        } else if (fld.type == BuiltInTypes.ENUM) {
             FieldEnum fieldEnum = (FieldEnum) fld;
 
             String newRootTitle = fieldEnum.udtTypeRef != null ? ENUM_ROOT + fieldEnum.udtType : res.title;
 
             if (update)
-                if (fieldEnum.multiple)
-                    res.update = "item." + res.name + "._u";
-                else
-                    res.update = "item._u." + res.name;
+                res.update = "item._u." + res.name;
 
             final ImmutableList.Builder<TmplEnumValue> enumValuesBuilder = ImmutableList.builder();
 
-            res.multiple = fieldEnum.multiple;
             for (FieldEnumItem anEnum : fieldEnum.strValues.values()) {
                 final TmplEnumValue ev = TmplEnumValue.buildFor(tmplDoc, newRootTitle, fieldEnum, anEnum);
                 enumValuesBuilder.add(ev);
@@ -278,6 +286,8 @@ public class TmplField {
 
         res.tagsSequence = buildTagsSequence(fld);
 
+        buildClassAttr(res);
+
         tmplDoc.fieldTitle.put(res.fullname.toUpperCase(), res.title);
 
         return res;
@@ -288,7 +298,7 @@ public class TmplField {
      */
     private static ImmutableList<String> buildTagsSequence(Field fld) {
         final ImmutableList.Builder<String> tagSequenceBuilder = ImmutableList.builder();
-        int s = fld.type == Field.Type.REFERS ? -1 : 0;
+        int s = fld.type == BuiltInTypes.REFERS ? -1 : 0;
         String currentType = fld.template;
         loop:
         for (; ; ) {
@@ -328,7 +338,8 @@ public class TmplField {
         return tagSequenceBuilder.build();
     }
 
-    public static TmplField buildSelfFieldFor(TmplRoot root, TmplTemplate ownerTemplate, TmplDocument document) {
+    // TODO: Obsolete: _self columns should not be used in new layout, so delete this after 2/1/2015
+    public static TmplField buildSelfFieldFor(TmplModel root, TmplTemplate ownerTemplate, TmplDocument document) {
 
         final TmplField res = new TmplField();
         res.document = document;
@@ -337,7 +348,7 @@ public class TmplField {
         res.name = "";
         res.id = document.name;
 
-        res.basicType = Field.Type.REFERS.toString();
+        res.basicType = BuiltInTypes.REFERS.toString();
         res.type = "_" + document.name;
 
         res.view = "item";
@@ -348,8 +359,22 @@ public class TmplField {
         tagsSequenceBuilder.add("document-tag-missing");
         res.tagsSequence = tagsSequenceBuilder.build();
 
+        buildClassAttr(res);
 
         return res;
+    }
+
+    private static void buildClassAttr(TmplField res) {
+        StringBuilder classesList = new StringBuilder();
+        if (res.name.length() > 0) // it's empty string, for _self field
+            classesList.append("df-field-").append(NamesUtil.wordsToDashSeparated(res.name));
+        boolean skipFieldName = true;
+        for (String typeName : res.tagsSequence)
+            if (skipFieldName)
+                skipFieldName = false;
+            else
+                classesList.append(" df-type-").append(NamesUtil.wordsToDashSeparated(typeName));
+        res.classAttr = classesList.toString();
     }
 
     public TmplDocument getDocument() {
@@ -358,6 +383,10 @@ public class TmplField {
 
     public TmplTemplate getOwnerTemplate() {
         return ownerTemplate;
+    }
+
+    public TmplAction getOwnerAction() {
+        return ownerAction;
     }
 
     public TmplField getSibling(String name) {
@@ -444,8 +473,8 @@ public class TmplField {
         return fieldByName.get(name.toUpperCase());
     }
 
-    public Boolean getMultiple() {
-        return multiple;
+    public String getClassAttr() {
+        return classAttr;
     }
 
     public Boolean getSecond() {
@@ -486,8 +515,8 @@ public class TmplField {
 
         int lastTemplate = tagsSequence.size() - 1;
         for (int i = 0; i < lastTemplate; i++) {
+            String currentType = tagsSequence.get(i);
             try {
-                String currentType = tagsSequence.get(i);
                 Map<String, Object> newArgs = new HashMap<String, Object>();
                 newArgs.put("_path", path);
                 newArgs.put("_type", currentType);
@@ -495,7 +524,12 @@ public class TmplField {
                 renderTemplate(newArgs, path, currentType, template, params);
                 return;
             } catch (TemplateNotFoundException e) {
-                // nothing - keep trying
+                if (!e.getMessage().endsWith(currentType + ".html")) // NotFoundException while rendering found tag
+                    throw new TemplateExecutionException(template.template, 0,
+                            String.format("Document '%1$s': Field '%2$s': Failed render tag '%3$s'. Reason: '%4$s'",
+                                    document.name, this.name, namespace + "." + type, e.getMessage()),
+                            new Exception());
+                // otherwise keep trying
             }
         }
 
@@ -509,19 +543,12 @@ public class TmplField {
             renderTemplate(newArgs, path, currentType, template, params);
             return;
         } catch (TemplateNotFoundException e) {
-            try {
-                Map<String, Object> newArgs = new HashMap<String, Object>();
-                newArgs.put("_path", path);
-                newArgs.put("_type", type);
-                newArgs.put("_debug", debug);
-                renderTemplate(newArgs, path, "tag-missing", template, params);
-                return;
-            } catch (Exception e1) {
-                throw new TemplateExecutionException(template.template, 0,
-                        String.format("Document '%1$s': Field '%2$s': Not found tag '%3$s' to render field type.",
-                                document.name, this.name, namespace + "." + type),
-                        new Exception());
-            }
+            throw new TemplateExecutionException(template.template, 0,
+                    String.format((e.getMessage().endsWith(currentType + ".html") ?
+                                    "Document '%1$s': Field '%2$s': Tag '%3$s' not found" : // Tag itself not found
+                                    "Document '%1$s': Field '%2$s': Failed render tag '%3$s'. Reason: '%4$s'"), // NotFoundException while rendering found tag
+                            document.name, this.name, namespace + "." + type, e.getMessage()),
+                    new Exception());
         }
     }
 
@@ -548,7 +575,9 @@ public class TmplField {
                 newArgs.put("_path", path);
                 newArgs.put("_type", currentType);
                 newArgs.put("_debug", true);
-                renderTemplate(newArgs, "dbg", "tag-selection-sequence", template, params);
+                final int p = namespace.indexOf('.');
+
+                renderTagSelectionSequence(namespace, template, params, newArgs);
                 return;
             } catch (TemplateNotFoundException e) {
                 // nothing - keep trying
@@ -565,7 +594,7 @@ public class TmplField {
             newArgs.put("_path", path);
             newArgs.put("_type", currentType);
             newArgs.put("_debug", true);
-            renderTemplate(newArgs, "dbg", "tag-selection-sequence", template, params);
+            renderTagSelectionSequence(namespace, template, params, newArgs);
             return;
 
         } catch (TemplateNotFoundException e) {
@@ -573,24 +602,44 @@ public class TmplField {
             newArgs.put("_path", path);
             newArgs.put("_type", null);
             newArgs.put("_debug", true);
-            renderTemplate(newArgs, "dbg", "tag-selection-sequence", template, params);
+            renderTagSelectionSequence(namespace, template, params, newArgs);
         }
+    }
+
+    /**
+     * Renders selection sequence. As first choice uses templateBase taken from namespace, otherwise goes to ngApp as default
+     */
+    private void renderTagSelectionSequence(String namespace, GroovyTemplate.ExecutableTemplate template, Map<String, Object> params, Map<String, Object> newArgs) {
+        int p = namespace.indexOf('.');
+        if (p > 0) {
+            String templateBase = namespace.substring(0, p);
+            if (!templateBase.equals("ngApp")) {
+                try {
+                    renderTemplate(newArgs, templateBase + "/dbg", "tag-selection-sequence", template, params);
+                    return;
+                } catch (TemplateNotFoundException e) {
+                    // fallthru
+                }
+            }
+        }
+        renderTemplate(newArgs, "ngApp/dbg", "tag-selection-sequence", template, params);
     }
 
     private void renderTemplate(Map<String, Object> args, String path, String type,
                                 GroovyTemplate.ExecutableTemplate template,
                                 Map<String, Object> params) {
         final String tagFile = "tags/" + path + "/" + type + ".html";
-        TreeMap<String, Object> newArgs = new TreeMap<String, Object>();
+        BaseTemplate t = (BaseTemplate) TemplateLoader.load(tagFile);
+        TreeMap<String, Object> newArgs = new TreeMap<String, Object>(args);
         newArgs.putAll(template.getBinding().getVariables());
         newArgs.put("_isInclude", true);
         newArgs.put("_arg", this);
-        newArgs.putAll(args);
-        BaseTemplate t = (BaseTemplate) TemplateLoader.load(tagFile);
         if (params != null)
             for (Map.Entry<String, Object> entry : params.entrySet())
-                newArgs.put("_" + entry.getKey(), entry.getValue());
+                newArgs.put("_" + entry.getKey( ), entry.getValue());
+        TagContext.enterTag(path + "/" + type);
         t.render(newArgs);
+        TagContext.exitTag();
     }
 
     @Override

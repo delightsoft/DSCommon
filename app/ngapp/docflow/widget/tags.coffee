@@ -14,7 +14,7 @@ module.directive 'docflowWidgetTags', [
         angular.extend params, $scope.$eval attrs.docflowWidgetTags
 
       if !params.docType
-        $log.error 'Missing \'docType\' attribute'
+        $log.error 'Missing \'type\' attribute'
         return
 
       if !params.template

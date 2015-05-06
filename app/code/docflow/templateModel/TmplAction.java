@@ -1,6 +1,7 @@
 package code.docflow.templateModel;
 
 import code.docflow.DocflowConfig;
+import code.docflow.compiler.enums.CrudActions;
 import code.docflow.model.Action;
 import code.docflow.model.DocType;
 import code.docflow.model.Field;
@@ -81,6 +82,7 @@ public class TmplAction {
         checkNotNull(action);
 
         final TmplAction res = new TmplAction();
+        res.document = tmplDoc;
         res.title = "doc." + docType.name + ACTION_LINK + action.name;
         res.name = action.name;
         res.outOfForm = action.outOfForm;
@@ -93,7 +95,7 @@ public class TmplAction {
 
         tmplDoc.actionTitle.put(res.name.toUpperCase(), res.title);
 
-        if (action.implicitAction != DocflowConfig.ImplicitActions.UPDATE && action.params != null) {
+        if (action.implicitAction != CrudActions.UPDATE && action.params != null) {
             final ImmutableList.Builder<TmplField> paramsListBuilder = ImmutableList.builder();
             final ImmutableMap.Builder<String, TmplField> paramsMapBuilder = ImmutableMap.builder();
             for (Field field : action.params.values()) {

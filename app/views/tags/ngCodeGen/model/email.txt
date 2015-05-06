@@ -1,0 +1,4 @@
+    #{if _entity && !_arg.calculated}@Column(length = ${_arg.length}, nullable = ${!_arg.nullable ? "false" : "true"})
+    #{ngCodeGen.model._index _arg /}#{/}@JsonEmail
+    public String ${_arg.name};
+#{ngCodeGen.getCalculated _arg, type:'String' /}

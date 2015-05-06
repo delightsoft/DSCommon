@@ -1,0 +1,7 @@
+    #{if _entity && !_arg.calculated}@AttributeOverrides({
+        @AttributeOverride(name = "type", column = @Column(name = "${_arg.name}_type", nullable=${_arg.nullable})),
+        @AttributeOverride(name = "id", column = @Column(name = "${_arg.name}_id", nullable=${_arg.nullable}))
+    })
+    @Embedded
+    #{/}public DocumentRef ${_arg.name}#{if !_arg.nullable} = DocumentRef.NULL#{/};
+#{ngCodeGen.getCalculated _arg, type: 'DocumentRef' /}

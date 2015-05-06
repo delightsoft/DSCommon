@@ -19,6 +19,8 @@ public class FieldSimple extends Field {
     public int maxLength;
     public String pattern;
 
+    public boolean text;
+
     @Override
     public void mergeTo(Field field) {
 

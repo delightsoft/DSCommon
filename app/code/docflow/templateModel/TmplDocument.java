@@ -1,13 +1,14 @@
 package code.docflow.templateModel;
 
-import code.docflow.DocflowConfig;
+import code.docflow.compiler.enums.BuiltInTemplates;
+import code.docflow.compiler.enums.CrudActions;
 import code.docflow.model.*;
 import code.docflow.rights.DocumentAccessActionsRights;
 import code.docflow.rights.RightsCalculator;
-import code.models.Document;
-import code.users.CurrentUser;
-import code.utils.BitArray;
-import code.utils.EnumUtil;
+import code.docflow.docs.Document;
+import code.docflow.users.CurrentUser;
+import code.docflow.utils.BitArray;
+import code.docflow.utils.EnumUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
@@ -30,7 +31,7 @@ public class TmplDocument {
     /**
      * Roots of the model.
      */
-    TmplRoot root;
+    TmplModel model;
 
     /**
      * Title in form for localization.
@@ -41,6 +42,12 @@ public class TmplDocument {
      * Document type name.
      */
     String name;
+
+    ImmutableList<TmplField> fields;
+    ImmutableMap<String, TmplField> fieldByName;
+
+    ImmutableList<TmplAction> actions;
+    ImmutableMap<String, TmplAction> actionByName;
 
     ImmutableList<TmplState> states;
 
@@ -56,63 +63,108 @@ public class TmplDocument {
 
     boolean linkedDocument;
 
-    public static TmplDocument buildFor(TmplRoot root, DocType document, DocumentAccessActionsRights rights) {
-        checkNotNull(document);
+    public static TmplDocument buildFor(TmplModel root, DocType docType, DocumentAccessActionsRights rights) {
+        checkNotNull(docType);
         checkNotNull(rights);
 
         final TmplDocument res = new TmplDocument();
-        res.document = document;
+        res.document = docType;
         res.rights = rights;
-        res.report = document.report;
-        res.root = root;
-        res.title = DOCUMENT_ROOT + document.name;
-        res.name = document.name;
-        res.linkedDocument = document.linkedDocument;
+        res.report = docType.report;
+        res.model = root;
+        res.title = DOCUMENT_ROOT + docType.name;
+        res.name = docType.name;
+        res.linkedDocument = docType.linkedDocument;
 
         final BitArray fieldsMask = rights.viewMask.copy();
         fieldsMask.add(rights.updateMask);
 
+        final BitArray mask = rights.viewMask.copy();
+        mask.add(rights.updateMask);
+
+        final ImmutableList.Builder<TmplField> fldListBuilder = ImmutableList.builder();
+        for (Field field : docType.entities.get(0).fields) { // docType.entities.get(0).fields includes implicit fields
+            if (!mask.get(field.index))
+                continue;
+            final TmplField tf = TmplField.buildFor(res, null, null, null, null, field, rights, mask,
+                    false, rights.viewMask.get(field.index), rights.updateMask.get(field.index));
+            fldListBuilder.add(tf);
+        }
+        ImmutableList<TmplField> fields = res.fields = fldListBuilder.build();
+
+        final ImmutableMap.Builder<String, TmplField> fldMapBuilder = ImmutableMap.builder();
+        for (TmplField tmplField : fields)
+            fldMapBuilder.put(tmplField.fullname.toUpperCase(), tmplField);
+        res.fieldByName = fldMapBuilder.build();
+
+        if (docType.udt) // udt happend here in codeGen, so we could take proper l18n titles
+            return res;
+
+        final ImmutableList.Builder<TmplAction> actionsListBuilder = ImmutableList.builder();
+
+        BitArray fixedActionsMask = rights.actionsMask.copy();
+        if (docType.linkedDocument) {
+            // to make possible localization of create button for linked docs, even known that linked
+            // document can be create only by assigning to field of its subj
+            fixedActionsMask.set(CrudActions.CREATE.index, true);
+        }
+        fixedActionsMask.set(CrudActions.DELETE.index, true);
+        fixedActionsMask.set(CrudActions.RECOVER.index, true);
+
+        final BitArray.EnumTrueValues actionsIterator = fixedActionsMask.getEnumTrueValues();
+        int actionIndex;
+        while ((actionIndex = actionsIterator.next()) != -1) {
+            final Action action = docType.actionsArray[actionIndex];
+            final TmplAction ta = TmplAction.buildFor(res, docType, action);
+            actionsListBuilder.add(ta);
+        }
+        ImmutableList<TmplAction> actions = res.actions = actionsListBuilder.build();
+
+        final ImmutableMap.Builder<String, TmplAction> actionsMapBuilder = ImmutableMap.builder();
+        for (TmplAction tmplAction : actions)
+            actionsMapBuilder.put(tmplAction.name.toUpperCase(), tmplAction);
+        res.actionByName = actionsMapBuilder.build();
+
         final ImmutableList.Builder<TmplState> stateListBuilder = ImmutableList.builder();
-        for (State state : document.states.values()) {
+        for (State state : docType.states.values()) {
             final TmplState tmplState = TmplState.buildFor(root, res, state);
             stateListBuilder.add(tmplState);
         }
         res.states = stateListBuilder.build();
 
         BitArray actionsMask = rights.actionsMask;
-        if (document.linkedDocument) {
+        if (docType.linkedDocument) {
             actionsMask = actionsMask.copy();
-            actionsMask.set(DocflowConfig.ImplicitActions.CREATE.index, true);
+            actionsMask.set(CrudActions.CREATE.index, true);
         }
 
         final ImmutableList.Builder<TmplTemplate> templatesListBuilder = ImmutableList.builder();
-
-        final Template listTmpl = document.templates.get(DocflowConfig.BuiltInTemplates.LIST.getUpperCase());
+        final Template listTmpl = docType.templates.get(BuiltInTemplates.LIST.getUpperCase());
         if (listTmpl != null)
-            addTemplate(document, rights, res, fieldsMask, templatesListBuilder, listTmpl);
+            addTemplate(docType, rights, res, fieldsMask, templatesListBuilder, listTmpl);
 
         // Generate system built-in template 'create'
-        if ((rights.actionsMask.get(DocflowConfig.ImplicitActions.CREATE.index) || document.linkedDocument) && !document.udt) {
-            final Template form = document.templates.get(DocflowConfig.BuiltInTemplates.FORM.getUpperCase());
-            final DocumentAccessActionsRights stateNewRights = (document.jsonBinder == null) ? // working with codegen project
+        if ((rights.actionsMask.get(CrudActions.CREATE.index) || docType.linkedDocument) && !docType.udt) {
+            final Template form = docType.templates.get(BuiltInTemplates.FORM.getUpperCase());
+            final DocumentAccessActionsRights stateNewRights = (docType.jsonBinder == null) ? // working with codegen project
                     rights :
-                    RightsCalculator.instance.calculate((Document) document.jsonBinder.sample, CurrentUser.getInstance());
-            final TmplTemplate tmplTemplate = TmplTemplate.buildFor(res, document, form, stateNewRights, true);
-            tmplTemplate.name = "create";
+                    RightsCalculator.instance.calculate((Document) docType.jsonBinder.sample, CurrentUser.getInstance());
+            final TmplTemplate tmplTemplate = TmplTemplate.buildFor(res, docType, form, stateNewRights, true);
+            tmplTemplate.name = BuiltInTemplates.CREATE.toString();
             tmplTemplate.screen = true;
             templatesListBuilder.add(tmplTemplate);
         }
 
-        final Template formTmpl = document.templates.get(DocflowConfig.BuiltInTemplates.FORM.getUpperCase());
+        final Template formTmpl = docType.templates.get(BuiltInTemplates.FORM.getUpperCase());
         if (formTmpl != null)
-            addTemplate(document, rights, res, fieldsMask, templatesListBuilder, formTmpl);
+            addTemplate(docType, rights, res, fieldsMask, templatesListBuilder, formTmpl);
 
-        for (Template template : document.templates.values()) {
-            if (EnumUtil.isEqual(DocflowConfig.BuiltInTemplates.LIST, template.name) ||
-                    EnumUtil.isEqual(DocflowConfig.BuiltInTemplates.CREATE, template.name) ||
-                    EnumUtil.isEqual(DocflowConfig.BuiltInTemplates.FORM, template.name))
+        for (Template template : docType.templates.values()) {
+            if (EnumUtil.isEqual(BuiltInTemplates.LIST, template.name) ||
+                    EnumUtil.isEqual(BuiltInTemplates.CREATE, template.name) ||
+                    EnumUtil.isEqual(BuiltInTemplates.FORM, template.name))
                 continue;
-            addTemplate(document, rights, res, fieldsMask, templatesListBuilder, template);
+            addTemplate(docType, rights, res, fieldsMask, templatesListBuilder, template);
         }
 
         ImmutableList<TmplTemplate> templates = res.templates = templatesListBuilder.build();
@@ -125,16 +177,16 @@ public class TmplDocument {
         res.templatesByName = templatesMapBuilder.build();
 
         ImmutableList.Builder<TmplFilter> filtersBuilder = ImmutableList.builder();
-        if (document.filters != null)
-            for (DocumentFilter filter : document.filters.values()) {
+        if (docType.filters != null)
+            for (DocumentFilter filter : docType.filters.values()) {
                 final TmplFilter tmplFilter = TmplFilter.buildFor(res, filter);
                 filtersBuilder.add(tmplFilter);
             }
         res.filters = filtersBuilder.build();
 
         ImmutableList.Builder<TmplSortOrder> ordersBuilder = ImmutableList.builder();
-        if (document.sortOrders != null)
-            for (DocumentSortOrder order : document.sortOrders.values()) {
+        if (docType.sortOrders != null)
+            for (DocumentSortOrder order : docType.sortOrders.values()) {
                 if ("_none".equals(order.name))
                     continue;
                 final TmplSortOrder tmplSortOrder = TmplSortOrder.buildFor(res, order);
@@ -148,11 +200,11 @@ public class TmplDocument {
     private static void addTemplate(DocType document, DocumentAccessActionsRights rights, TmplDocument res, BitArray fieldsMask, ImmutableList.Builder<TmplTemplate> templatesListBuilder, Template template) {
 // TODO: Reconsider - some documents, like 'document Demo report' might not have fields at all.  Also, ocasional skipping a template will cause null-pointer exceptions later in the code
 //        if (fieldsMask.isIntersects(template.fieldsMask))
-            templatesListBuilder.add(TmplTemplate.buildFor(res, document, template, rights, false));
+        templatesListBuilder.add(TmplTemplate.buildFor(res, document, template, rights, false));
     }
 
-    public TmplRoot getRoot() {
-        return root;
+    public TmplModel getModel() {
+        return model;
     }
 
     public String getTitle() {
@@ -165,6 +217,22 @@ public class TmplDocument {
 
     public boolean isReport() {
         return report;
+    }
+
+    public ImmutableList<TmplField> getFields() {
+        return fields;
+    }
+
+    public TmplField getFieldByName(String name) {
+        return fieldByName.get(name.toUpperCase());
+    }
+
+    public ImmutableList<TmplAction> getActions() {
+        return actions;
+    }
+
+    public TmplAction getActionByName(String name) {
+        return actionByName.get(name.toUpperCase());
     }
 
     public ImmutableList<TmplState> getStates() {
@@ -184,6 +252,7 @@ public class TmplDocument {
         return action == null ? false : rights.actionsMask.get(action.index);
     }
 
+    // TODO: Reconsider: When I moved back getFields and getAction from TmplTemplate to TmplDocument, this method seems to be odd
     public String getFieldTitle(String name) {
         return fieldTitle.get(name.toUpperCase());
     }

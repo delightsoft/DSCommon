@@ -1,4 +1,7 @@
-module = angular.module 'docflow.ui.states', ['ui.router.state', 'docflow.config']
+module = angular.module 'docflow.ui.states', [
+  'ui.router.state'
+  'docflow.config'
+]
 
 module.config(
   ['$stateProvider', '$docflowConfigProvider',
@@ -7,7 +10,7 @@ module.config(
     $stateProvider.state
       name: "doc"
       url: "/doc"
-      templateUrl: (-> return "/tmpl/doc/index?#{$docflowConfigProvider.tmplParams}")
+      templateUrl: (-> return "/tmpl/#{$docflowConfigProvider.templateBase}/doc/docIndex?#{$docflowConfigProvider.tmplParams}")
 
     # for every document in configuration
     for docType, doc of $docflowConfigProvider.docs
@@ -24,17 +27,18 @@ module.config(
           name: "doc.#{docType}.list"
           views:
             '@doc':
-              templateUrl: (-> return "/tmpl/doc/#{docType}?t=list&#{$docflowConfigProvider.tmplParams}")
-              controller: (($scope) ->
+              templateUrl: (-> return "/tmpl/doc/#{docType}?b=#{$docflowConfigProvider.templateBase}&t=list&#{$docflowConfigProvider.tmplParams}")
+              controller: ['$scope', (($scope) ->
                 $scope.values = {} # collection to keep filtering controls values
-                return)
+                return)]
 
         # document form/create states
-        formEditCreateController = (($scope, editor,  $docflowClient) ->
-            $scope.itemHeaderUrl = "/tmpl/doc/#{docType}?t=formTitle&#{$docflowConfigProvider.tmplParams}"
+        formEditCreateController = ['$scope', 'editor',  '$docflowClient',
+          (($scope, editor,  $docflowClient) ->
+            $scope.itemHeaderUrl = "/tmpl/doc/#{docType}?b=#{$docflowConfigProvider.templateBase}&t=formTitle&#{$docflowConfigProvider.tmplParams}"
             $scope.editor = editor
             editor.controller($scope)
-            return)
+            return)]
 
         $stateProvider.state
           name: "doc.#{docType}.create"
@@ -53,7 +57,7 @@ module.config(
               )]
           views:
             '@doc':
-              templateUrl: (-> return "/tmpl/doc/#{docType}?t=form&#{$docflowConfigProvider.tmplParams}")
+              templateUrl: (-> return "/tmpl/doc/#{docType}?b=#{$docflowConfigProvider.templateBase}&t=form&#{$docflowConfigProvider.tmplParams}")
               controller: formEditCreateController
 
         $stateProvider.state
@@ -73,7 +77,7 @@ module.config(
               )]
           views:
             '@doc':
-              templateUrl: (-> return "/tmpl/doc/#{docType}?t=form&#{$docflowConfigProvider.tmplParams}")
+              templateUrl: (-> return "/tmpl/doc/#{docType}?b=#{$docflowConfigProvider.templateBase}&t=form&#{$docflowConfigProvider.tmplParams}")
               controller: formEditCreateController
 
         # item history state
@@ -82,7 +86,7 @@ module.config(
 #          name: "doc.#{docType}.form.history"
 #          views:
 #            'mainArea':
-#              templateUrl: (-> return "/tmpl/history/itemHistory?#{$docflowConfigProvider.tmplParams}")
+#              templateUrl: (-> return "/tmpl/history/itemHistory?b=#{$docflowConfigProvider.templateBase}&#{$docflowConfigProvider.tmplParams}")
 
         # item comments state
         state = $stateProvider.state
@@ -90,9 +94,9 @@ module.config(
           url: "/comments"
 #          views:
 #            "@doc.#{docType}.form":
-#              templateUrl: (-> return "/tmpl/comments/itemComments?#{$docflowConfigProvider.tmplParams}")
+#              templateUrl: (-> return "/tmpl/comments/itemComments?b=#{$docflowConfigProvider.templateBase}&#{$docflowConfigProvider.tmplParams}")
         state["@doc.#{docType}.form"] =
-          templateUrl: (-> return "/tmpl/comments/itemComments?#{$docflowConfigProvider.tmplParams}")
+          templateUrl: (-> return "/tmpl/comments/itemComments?b=#{$docflowConfigProvider.templateBase}&#{$docflowConfigProvider.tmplParams}")
 
         return)(docType)
 

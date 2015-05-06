@@ -1,6 +1,6 @@
 package code.docflow.yaml.builders;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.collections.ItemsIndexedCollection;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlParser;
@@ -9,9 +9,9 @@ import code.docflow.yaml.converters.ArrayConverter;
 import code.docflow.yaml.converters.ItemsMapConverter;
 import code.docflow.yaml.converters.PrimitiveTypeConverter;
 import code.docflow.yaml.converters.SequenceConverter;
-import code.utils.Builder;
-import code.utils.PrimitiveType;
-import code.utils.TypeBuildersFactory;
+import code.docflow.utils.Builder;
+import code.docflow.utils.PrimitiveType;
+import code.docflow.utils.TypeBuildersFactory;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;

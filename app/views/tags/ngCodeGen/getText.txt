@@ -1,0 +1,8 @@
+%{ def field = _arg
+if (field.calculated) {
+    def T = "    "; // one tab
+    out.println()
+    out.println T + "public String getText() {"
+    out.println T + T + "return text = ${_arg.document.textSourceField != null ? _arg.document.textSourceField.fullname : '_fullId()'};"
+    out.println T + "}"
+} }%

@@ -1,4 +1,6 @@
-module = angular.module 'docflow.fix.select2', ['docflow.config']
+# TODO: Remove if not in use by 2015/3/1
+
+module = angular.module 'docflow.widget.select2', ['docflow.config']
 
 module.directive 'docflowFixSelect2',
 [(->

@@ -1,12 +1,16 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
-import code.docflow.DocflowConfig;
+import code.docflow.compiler.Compiler410LinkToCode;
+import code.docflow.controlflow.Result;
+import code.docflow.collections.Item;
+import code.docflow.compiler.enums.BuiltInTypes;
 import code.docflow.model.*;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlMessages;
 import code.docflow.yaml.YamlParser;
-import code.utils.NamesUtil;
+import code.docflow.utils.NamesUtil;
+import models.DocflowFile;
+import play.exceptions.UnexpectedException;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -17,6 +21,12 @@ import java.util.regex.Pattern;
  * Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)
  */
 public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Field> {
+
+    // See 'maximum phone-number' in https://code.google.com/p/libphonenumber/source/browse/trunk/java/release_notes.txt?r=574
+    // Plus extention, sign plus and 'x' for extention.  Experementally I found that libphone allows up to 22 digits including extention.
+    public static final int PHONE_FIELD_LENGTH = 24;
+    // See http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
+    public static final int MAX_EMAIL_LENGTH = 254;
 
     // Example: f1 type() attr1 attr2
     public static Pattern fieldNameAndType = Pattern.compile("^\\s*(\\S+)\\s+([^\\s\\(\\[]+)(\\s*\\(([^\\)]*)\\))?");
@@ -34,12 +44,21 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
 
         final String typeStr = matcher.group(2).trim();
 
-        Field.Type type = null;
-        try {
-            type = Field.Type.valueOf(typeStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            // it's got to be UDT (user defined type)
-        }
+
+        BuiltInTypes type = null;
+        // Synonyms: struct -> structure; ref -> refers; boolean -> bool
+        if ("struct".equalsIgnoreCase(typeStr))
+            type = BuiltInTypes.STRUCTURE;
+        else if ("ref".equalsIgnoreCase(typeStr))
+            type = BuiltInTypes.REFERS;
+        else if ("boolean".equalsIgnoreCase(typeStr))
+            type = BuiltInTypes.BOOL;
+        else
+            try {
+                type = BuiltInTypes.valueOf(typeStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // it's got to be UDT (user defined type)
+            }
 
         // create Field object accordingly to type.  if type is unknown at hits point, FieldSimple will be created
         Field fld = null;
@@ -48,9 +67,34 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
             fld = new FieldSimple();
         else
             switch (type) {
+                case PHONE:
+                    final FieldSimple fieldPhone = new FieldSimple();
+                    fieldPhone.maxLength = 40;
+                    fieldPhone.length = PHONE_FIELD_LENGTH;
+                    fld = fieldPhone;
+                    break;
+                case EMAIL:
+                    final FieldSimple fieldEmail = new FieldSimple();
+                    fieldEmail.length = fieldEmail.maxLength = MAX_EMAIL_LENGTH;
+                    fld = fieldEmail;
+                    break;
+                case UUID:
+                    final FieldSimple fieldUuid = new FieldSimple();
+                    fld = fieldUuid;
+                    break;
+                case JSONTEXT:
+                    final FieldSimple fieldJson = new FieldSimple();
+                    fld = fieldJson;
+                    break;
+                case FILE:
+                    final FieldReference fieldFile = new FieldReference();
+                    fld = fieldFile;
+                    fieldFile.refDocument = DocflowFile.class.getSimpleName();
+                    accessedFields.add("REFDOCUMENT");
+                    break;
                 case REFERS:
                 case TAGS:
-                    final boolean isTags = (type == Field.Type.TAGS);
+                    final boolean isTags = (type == BuiltInTypes.TAGS);
                     final Matcher matcher1 = documentNameAfterRefers.matcher(value);
                     if (!matcher1.find(matcher.end())) {
                         result.addMsg(!isTags ? YamlMessages.error_DocumentClassNameIsMissingAfterRefers :
@@ -61,20 +105,24 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
                     restPos = matcher1.end();
                     if (matcher1.group(1) != null) { // it's polymorphic reference
                         final String stringToSplit = matcher1.group(1);
-                        type = Field.Type.POLYMORPHIC_REFERS;
+                        type = BuiltInTypes.POLYMORPHIC_REFERS;
                         final FieldPolymorphicReference fieldPolymorphicReference = new FieldPolymorphicReference();
                         fld = fieldPolymorphicReference;
                         if (stringToSplit != null && !"_ANY".equalsIgnoreCase(stringToSplit.trim())) {
                             final String[] docTypes = stringToSplit.split(",");
-                            fieldPolymorphicReference.refDocuments = new String[docTypes.length];
-                            accessedFields.add("REFDOCUMENTS");
-                            for (int i = 0; i < docTypes.length; i++) {
-                                String docType = docTypes[i];
-                                fieldPolymorphicReference.refDocuments[i] = docType.trim();
+                            if (docTypes[0].trim().length() == 0)
+                                fieldPolymorphicReference.refDocuments = new String[0];
+                            else {
+                                fieldPolymorphicReference.refDocuments = new String[docTypes.length];
+                                accessedFields.add("REFDOCUMENTS");
+                                for (int i = 0; i < docTypes.length; i++) {
+                                    String docType = docTypes[i];
+                                    fieldPolymorphicReference.refDocuments[i] = docType.trim();
+                                }
                             }
                         }
                     } else { // it's simple reference
-                        type = Field.Type.REFERS;
+                        type = BuiltInTypes.REFERS;
                         final FieldReference fieldReference = new FieldReference();
                         fld = fieldReference;
                         fieldReference.refDocument = matcher1.group(2);
@@ -108,7 +156,7 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
 
                         // return subtable as field
                         accessedFields = new HashSet<String>();
-                        type = Field.Type.TAGS;
+                        type = BuiltInTypes.TAGS;
                         fld = tagsField;
                         if (matcher.group(4) != null) {
                             // TODO: I'm sure that is this for.  Invistigate !!!
@@ -120,7 +168,7 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
                 case STRUCTURE:
                 case SUBTABLE:
                     FieldStructure fieldStructure = new FieldStructure();
-                    fieldStructure.single = (type == Field.Type.STRUCTURE);
+                    fieldStructure.single = (type == BuiltInTypes.STRUCTURE);
                     fld = fieldStructure;
                     if (matcher.group(4) != null) {
                         fieldStructure.udtType = matcher.group(4).trim();
@@ -136,15 +184,13 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
                         accessedFields.add("VALUES");
                     }
                     String udtTypeName = matcher.group(1).trim();
-                    fieldEnum.enumTypeName = DocflowConfig.ENUMS_PACKAGE + NamesUtil.turnFirstLetterInUpperCase(udtTypeName);
+                    fieldEnum.enumTypeName = Compiler410LinkToCode.ENUMS_PACKAGE + NamesUtil.turnFirstLetterInUpperCase(udtTypeName);
                     break;
-                case CALCULATED:
-                    FieldCalculated fieldCalculated = new FieldCalculated();
+                case JAVA:
+                    FieldJava fieldCalculated = new FieldJava();
                     fld = fieldCalculated;
                     fieldCalculated.javaType = matcher.group(4) != null ? matcher.group(4).trim() : "Object";
                     accessedFields.add("JAVATYPE");
-                    fieldCalculated.calculated = true;
-                    accessedFields.add("CALCULATED");
                     fieldCalculated.derived = true;
                     accessedFields.add("DERIVED");
                     break;
@@ -190,28 +236,39 @@ public class FieldCompositeKeyHandler implements CompositeKeyHandler<String, Fie
         return fld.name.toUpperCase();
     }
 
-    public static void processFlags(Object model, String flagsString, HashSet<String> accessedFields, YamlParser parser, Result result) {
+    public static void processFlags(Item model, String flagsString, HashSet<String> accessedFields, YamlParser parser, Result result) {
         ItemCompositeKeyHandler.FlagsAccessor flagsAccessor = ItemCompositeKeyHandler.flagsAccessorsFactory.get(model.getClass());
-        final String[] words = flagsString.split("\\s+");
-        for (int i = 0; i < words.length; i++) {
-            String flag = words[i];
-            if (flag.isEmpty())
+        for (String word : flagsString.split("\\s+")) {
+            if (word.isEmpty())
                 continue;
-            boolean setToTrue = true;
-            if (flag.startsWith("!")) {
-                flag = flag.substring(1);
-                setToTrue = false;
-            }
-            final java.lang.reflect.Field f = flagsAccessor.flags.get(flag);
-            if (f == null) {
-                result.addMsg(YamlMessages.error_UnknownFlag, parser.getSavedFilePosition(), flag);
-                continue;
-            }
-            try {
-                f.setBoolean(model, setToTrue);
-                accessedFields.add(flag.toUpperCase());
-            } catch (IllegalAccessException e) {
-                // unexpected
+            if (word.startsWith("_")) { // it's group
+                if (model._groups == null)
+                    model._groups = new HashSet<String>();
+                model._groups.add(word.substring(1).toUpperCase());
+            } else {
+                boolean setToTrue = true;
+                if (word.startsWith("!")) {
+                    word = word.substring(1);
+                    setToTrue = false;
+                }
+                java.lang.reflect.Field f = null;
+                // Synonym: null -> nullable
+                if ("null".equalsIgnoreCase(word))
+                    f = flagsAccessor.flags.get("nullable");
+                else if ("index".equalsIgnoreCase(word))
+                    f = flagsAccessor.flags.get("indexFlag");
+                else
+                    f = flagsAccessor.flags.get(word);
+                if (f == null) {
+                    result.addMsg(YamlMessages.error_UnknownFlag, parser.getSavedFilePosition(), word);
+                    continue;
+                }
+                try {
+                    f.setBoolean(model, setToTrue);
+                    accessedFields.add(word.toUpperCase());
+                } catch (IllegalAccessException e) {
+                    throw new UnexpectedException(e);
+                }
             }
         }
     }

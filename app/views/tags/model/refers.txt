@@ -1,2 +1,0 @@
-    #{if _entity}@ManyToOne(fetch = FetchType.LAZY, optional = ${(!_arg.required).toString()})
-    #{/}public ${_arg.refDocument} ${_arg.name};

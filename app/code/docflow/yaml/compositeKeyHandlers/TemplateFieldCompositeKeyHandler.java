@@ -1,6 +1,6 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.model.*;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlMessages;
@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  */
 public class TemplateFieldCompositeKeyHandler implements CompositeKeyHandler<String, TemplateField> {
 
-    public static Pattern fieldNameAndPattern = Pattern.compile("^\\s*(\\w*)\\s+(\\w*)\\s*$");
+    public static Pattern fieldNameAndPattern = Pattern.compile("^\\s*([^\\s]*)\\s+([^\\s]*)\\s*$");
 
     @Override
     public TemplateField parse(String value, HashSet<String> accessedFields, Class collectionType, YamlParser parser, Result result) {

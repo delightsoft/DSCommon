@@ -1,6 +1,6 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.model.Template;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlMessages;
@@ -22,7 +22,7 @@ public class TemplateCompositeKeyHandler implements CompositeKeyHandler<String, 
     public Template parse(String value, HashSet<String> accessedFields, Class collectionType, YamlParser parser, Result result) {
         final Matcher matcher = nameAndFlags.matcher(value);
         if (!matcher.find()) {
-            result.addMsg(YamlMessages.error_InvalidFieldDescription, parser.getSavedFilePosition(), parser.getSavedValue());
+            result.addMsg(YamlMessages.error_InvalidTemplateDescription, parser.getSavedFilePosition(), parser.getSavedValue());
             return null;
         }
 

@@ -1,17 +1,24 @@
 package code;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.DocflowConfig;
-import code.tests.TestUtil;
+import code.docflow.messages.MessageContainerClass;
+import code.docflow.messages.MessageTemplate;
+import code.docflow.utils.TestUtil;
 import com.google.common.base.Strings;
 import play.Play;
 import play.PlayPlugin;
+import play.classloading.ApplicationClasses;
 import play.db.jpa.JPAPlugin;
+import play.exceptions.UnexpectedException;
 import play.mvc.Http;
 import play.mvc.Router;
 import play.vfs.VirtualFile;
 
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,7 +27,8 @@ import java.util.regex.Pattern;
  */
 public class DSCommonPlugin extends PlayPlugin {
 
-    private boolean isStarted;
+    public static final String NG_APP_BASE = "ngApp.base";
+    private boolean isDevMode;
 
     private static final String NO_BASEURL = "";
     private static String domain;
@@ -62,21 +70,26 @@ public class DSCommonPlugin extends PlayPlugin {
 
     @Override
     public void onRoutesLoaded() {
-        isStarted = Play.mode == Play.Mode.DEV;
-        if (isStarted) {
-            Router.addRoute("GET", "/@docflow", "DocflowGenerator.index");
-            Router.addRoute("GET", "/@docflow/entity/{entityName}", "DocflowGenerator.entity");
-            Router.addRoute("GET", "/@docflow/rightsByRoles", "DocflowRights.rightsByRoles");
-            Router.addRoute("GET", "/@docflow/rightsByStates", "DocflowRights.rightsByStates");
-            Router.addRoute("POST", "/@docflow/setAppPath", "DocflowGenerator.setAppPath");
-            Router.addRoute("POST", "/@docflow/generate/entities", "DocflowGenerator.generateModels");
-            Router.addRoute("POST", "/@docflow/generate/messages", "DocflowLocalization.processMessages");
+        if (Play.mode == Play.Mode.DEV) {
+            Router.addRoute("GET", "/@fix", "DocflowHttpFixTextController.fixText");
+            Router.addRoute("GET", "/@docflow", "ngCodeGen.DocflowGenerator.index");
+            Router.addRoute("GET", "/@sql", "ngCodeGen.MSSQLScript.index");
+            Router.addRoute("GET", "/@docflow/entity/{entityName}", "ngCodeGen.DocflowGenerator.entity");
+            Router.addRoute("GET", "/@docflow/rightsByRoles", "ngCodeGen.DocflowRights.rightsByRoles");
+            Router.addRoute("GET", "/@docflow/rightsByStates", "ngCodeGen.DocflowRights.rightsByStates");
+            Router.addRoute("POST", "/@docflow/setAppPath", "ngCodeGen.DocflowGenerator.setAppPath");
+            Router.addRoute("POST", "/@docflow/generate/entities", "ngCodeGen.DocflowGenerator.generateModels");
         }
+        String ngAppBase = Play.configuration.getProperty(NG_APP_BASE, "");
+        if (ngAppBase.length() > 0)
+            ngAppBase = "/" + ngAppBase;
+        Router.addRoute(Integer.MAX_VALUE, "GET", ngAppBase + "/?", "DocflowHttpIndexController.app", null, null);
+        Router.addRoute(Integer.MAX_VALUE, "GET", ngAppBase + "/{<.*>rest}", "DocflowHttpIndexController.app", null, null);
     }
 
     @Override
     public void onApplicationReady() {
-        if (!isStarted)
+        if (!isDevMode)
             return;
         String protocol = "http";
         String port = "9000";
@@ -102,7 +115,7 @@ public class DSCommonPlugin extends PlayPlugin {
         final Result result;
         try {
             result = new Result();
-            DocflowConfig.instance.prepare(result);
+            DocflowConfig.instance.load(result);
             if (result.isError())
                 throw new DocflowConfigException(result);
         } finally {
@@ -110,6 +123,21 @@ public class DSCommonPlugin extends PlayPlugin {
         }
 
         result.toLogger();
+
+        // force static MessageTemplate messages to be instantiated
+        final List<ApplicationClasses.ApplicationClass> messagesClasses = Play.classes.getAnnotatedClasses(MessageContainerClass.class);
+        for (ApplicationClasses.ApplicationClass clazz : messagesClasses) {
+            for (Field field : clazz.javaClass.getFields()) {
+                final int mod = field.getModifiers();
+                if (Modifier.isPublic(mod) && Modifier.isStatic(mod) && field.getType() == MessageTemplate.class) {
+                    try {
+                        field.get(null); // make sure static value is created, to be used by Result2Json.toResult(...)
+                    } catch (IllegalAccessException e) {
+                        throw new UnexpectedException(e);
+                    }
+                }
+            }
+        }
 
         lastLoading = System.currentTimeMillis();
     }

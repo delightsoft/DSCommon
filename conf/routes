@@ -1,17 +1,30 @@
-GET     /tmpl/doc/index                                     DocflowHttpController.generalTemplate(template:'doc/index')
-GET     /tmpl/doc/{docType}                                 DocflowHttpController.documentHtmlTemplate
-GET     /tmpl/{<.*>template}                                DocflowHttpController.generalTemplate
+GET     /tmpl/doc/docIndex                                  DocflowHttpTemplatesController.generalTemplate(template:'ngApp/doc/docIndex')
+GET     /tmpl/doc/{docType}                                 DocflowHttpTemplatesController.documentHtmlTemplate
 
-GET     /api/list/{docType}/?                               DocflowHttpController.list
-GET     /api/get/{id}/?                                     DocflowHttpController.get
-POST    /api/action/{id}/{action}/?                         DocflowHttpController.action
-GET     /api/action/{id}/{action}/?                         DocflowHttpController.action
+# left for backward compatibility
+GET     /tmpl/ngApp/doc/docIndex                            DocflowHttpTemplatesController.generalTemplate(template:'ngApp/doc/docIndex')
+GET     /tmpl/ngApp/doc/{docType}                           DocflowHttpTemplatesController.documentHtmlTemplate(b:'ngApp')
 
-GET     /app/                                               staticDir:app/ngapp
+GET     /tmpl/{<.*>template}                                DocflowHttpTemplatesController.generalTemplate
+
+OPTIONS /api/{<.*>rest}                                     DocflowHttpIndexController.options
+GET     /api/list/{docType}/?                               DocflowHttpListController.list
+GET     /api/export/{docType}/?                             DocflowHttpListController.export
+GET     /api/get/{id}/?                                     DocflowHttpGetController.get
+POST    /api/action/{id}/{action}/?                         DocflowHttpActionController.action
+
+GET     /api/download/{filename}                            DocflowHttpFileController.download(inline:'0')
+GET     /api/img/{filename}                                 DocflowHttpFileController.download(inline:'1')
+POST    /api/upload/{docOrDocType}/field/{field}            DocflowHttpFileController.upload
+POST    /api/upload/{docOrDocType}/action/{action}          DocflowHttpFileController.upload
+
 GET     /static/                                            staticDir:static
 # This path required for http://localhost:9000/@test
 GET     /public/                                            staticDir:public
 
+GET     /status                                             DocflowHttpIndexController.status
+
 GET     /favicon.ico                                        404
 
-GET     /{<.*>rest}                                         DocflowHttpController.app
+# Commented out.  Instead same route gets added in DSCommonPlugin.onRoutesLoaded() with respect to config.
+# GET    /{<.*>rest}                                        DocflowHttpIndexController.app

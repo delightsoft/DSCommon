@@ -1,0 +1,4 @@
+    #{if _entity && !_arg.calculated}@ManyToOne(fetch = FetchType.LAZY, optional = ${(!_arg.required).toString()})
+    #{if _targetDb != 'mssql'}@OnDelete(action = OnDeleteAction.CASCADE)
+    #{/}#{ngCodeGen.model._index _arg /}#{/}public ${_arg.refDocument} ${_arg.name};
+#{ngCodeGen.getCalculated _arg, type: _arg.refDocument /}

@@ -1,7 +1,6 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
-import code.docflow.model.TemplateField;
+import code.docflow.controlflow.Result;
 import code.docflow.model.TemplateTab;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlMessages;
@@ -22,7 +21,7 @@ public class TemplateTabCompositeKeyHandler implements CompositeKeyHandler<Strin
     public TemplateTab parse(String value, HashSet<String> accessedFields, Class collectionType, YamlParser parser, Result result) {
         final Matcher matcher = fieldNameAndPattern.matcher(value);
         if (!matcher.find()) {
-            result.addMsg(YamlMessages.error_InvalidFieldDescription, parser.getSavedFilePosition(), parser.getSavedValue());
+            result.addMsg(YamlMessages.error_InvalidTabDescription, parser.getSavedFilePosition(), parser.getSavedValue());
             return null;
         }
 

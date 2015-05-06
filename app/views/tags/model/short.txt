@@ -1,8 +1,0 @@
-%{
-def field = _arg
-def T = "    "; // one tab
-if (field.dbRequired)
-    out.println T + "public short ${field.name};"
-else
-    out.println T + "public Short ${field.name};"
-}%

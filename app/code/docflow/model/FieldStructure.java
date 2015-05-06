@@ -2,7 +2,7 @@ package code.docflow.model;
 
 import code.docflow.yaml.annotations.NotYamlField;
 import code.docflow.yaml.annotations.TargetField;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

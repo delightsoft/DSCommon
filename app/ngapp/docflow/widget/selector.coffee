@@ -1,4 +1,7 @@
-module = angular.module 'docflow.widget.selector', ['docflow.config']
+module = angular.module 'docflow.widget.selector', [
+  'docflow.config'
+  'docflow.widget.select2'
+]
 
 module.directive 'docflowWidgetSelector', [
   '$docflow', '$docflowConfig', '$http', '$timeout', '$log',
@@ -16,7 +19,7 @@ module.directive 'docflowWidgetSelector', [
         angular.extend params, $scope.$eval attrs.docflowWidgetSelector
 
       if !params.docType
-        $log.error 'Missing \'docType\' attribute'
+        $log.error 'Missing \'type\' attribute'
         return
 
       if !params.template
@@ -24,7 +27,7 @@ module.directive 'docflowWidgetSelector', [
         return
 
       $scope.createNew = ->
-        $docflow.createDocDialog(params.docType) # TODO: Specify right output form - either list or form
+        $docflow.createDocDialog(params.docType, resultTemplate: 'dict')
         .then (value) ->
           if (value)
             ngModel.$setViewValue value
@@ -34,10 +37,13 @@ module.directive 'docflowWidgetSelector', [
 
       ie = element.find('[docflow-select2]')
       input = if ie.length > 0 then $(ie[0]) else element # defauls: element itself
+      url = "/api/list/#{params.docType}?#{$docflowConfig.apiParams}"
+      if(angular.isDefined(params.filter) && params.filter.length>0)
+        url = "/api/list/#{params.docType}?#{$docflowConfig.apiParams}" + "&#{params.filter}"
 
       options =
         cache: false
-        url: "/api/list/#{params.docType}?#{$docflowConfig.apiParams}"
+        url: url
         dateType: 'json'
         quiteMillis: 300
 

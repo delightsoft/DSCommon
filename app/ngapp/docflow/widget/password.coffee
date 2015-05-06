@@ -23,10 +23,9 @@ module.directive 'docflowWidgetPassword',
         $scope.pwd2 = ''
 
         updateModel = (->
-          if $scope.pwd1 && $scope.pwd1 == $scope.pwd2
-            model.$setViewValue $scope.pwd1
-          else
-            model.$setViewValue undefined
+          p1 = $scope.pwd1.trim()
+          p2 = $scope.pwd2.trim()
+          model.$setViewValue if p1 == p2 && p1 != '' then p1 else null
           return)
 
         $scope.$watch 'pwd1', updateModel
@@ -44,7 +43,7 @@ module.directive 'docflowWidgetPasswordMatch',
     link: (($scope, element, attrs, model) ->
 
       model.$parsers.push ((value) ->
-        model.$setValidity 'passwordMatch', value == $scope.pwd1
+        model.$setValidity 'passwordMatch', value.trim() == $scope.pwd1.trim()
         return value)
 
       return)

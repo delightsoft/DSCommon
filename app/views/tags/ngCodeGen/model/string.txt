@@ -1,0 +1,3 @@
+    #{if _entity && !_arg.calculated}@Column(length = ${_arg.length}, nullable = ${!_arg.nullable ? "false" : "true"}#{if !_arg.nullable}, columnDefinition = "#{if _targetDb == 'mssql'}varchar#{/}#{else}character varying#{/}(${_arg.length}) default ''"#{/})
+    #{ngCodeGen.model._index _arg /}#{/}public String ${_arg.name}#{if !_arg.nullable} = ""#{/};
+#{if _arg.fullname == 'text'}#{ngCodeGen.getText _arg, type:'String' /}#{/}#{else}#{ngCodeGen.getCalculated _arg, type:'String' /}#{/}

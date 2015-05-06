@@ -1,10 +1,13 @@
 package code.docflow.rights;
 
 import code.docflow.DocflowConfig;
+import code.docflow.compiler.enums.BuiltInActions;
+import code.docflow.compiler.enums.BuiltInFields;
+import code.docflow.compiler.enums.CrudActions;
+import code.docflow.docs.Document;
 import code.docflow.model.*;
-import code.models.Document;
-import code.users.CurrentUser;
-import code.utils.BitArray;
+import code.docflow.users.CurrentUser;
+import code.docflow.utils.BitArray;
 import com.google.common.base.Preconditions;
 import play.Play;
 
@@ -116,8 +119,24 @@ public class RightsCalculator {
                             i++;
                         }
                     }
+                    if (docType.relations != null) {
+                        if (roleDocument.retrieveMask != null) {
+                            if (rights.retrieveMask == null)
+                                rights.retrieveMask = roleDocument.retrieveMask.copy();
+                            else
+                                rights.retrieveMask.intersect(roleDocument.retrieveMask);
+                        } else {
+                            if (rights.retrieveMask == null)
+                                rights.retrieveMask = new BitArray(docType.relations.size());
+                            else
+                                rights.retrieveMask.clear();
+                        }
+                    }
                 }
             }
+
+            if (docType.relations != null && rights.retrieveMask == null)
+                rights.retrieveMask = new BitArray(docType.relations.size());
 
             if (rights.viewMask == null) {
                 rights.viewMask = rights.updateMask = new BitArray(docType.allFields.size());
@@ -129,12 +148,12 @@ public class RightsCalculator {
             }
 
             // Rule: If full-rights contain DELETE action they also must include RECOVER action
-            if (rights.actionsMask.get(DocflowConfig.ImplicitActions.DELETE.index))
-                rights.actionsMask.set(DocflowConfig.ImplicitActions.RECOVER.index, true);
+            if (rights.actionsMask.get(CrudActions.DELETE.index))
+                rights.actionsMask.set(CrudActions.RECOVER.index, true);
 
             // Rule: !create => !newInstance
-            final Action newInstanceAction = docType.actions.get(DocflowConfig.BuiltInActions.NEW_INSTANCE.getUpperCase());
-            if (newInstanceAction != null && !rights.actionsMask.get(DocflowConfig.ImplicitActions.CREATE.index))
+            final Action newInstanceAction = docType.actions.get(BuiltInActions.NEWINSTANCE.getUpperCase());
+            if (newInstanceAction != null && !rights.actionsMask.get(CrudActions.CREATE.index))
                 rights.actionsMask.set(newInstanceAction.index, false);
 
             docTypeCompositeRoleRightsArray.lazySet(docType.index, rights);
@@ -208,8 +227,8 @@ public class RightsCalculator {
         if (document.relations != null)
             unconditionalRigths.retrieveMask = new BitArray(document.relations.size());
 
-        final boolean isRetrievable = unconditionalRigths.actionsMask.get(DocflowConfig.ImplicitActions.RETRIEVE.index);
-        final boolean isDeletable = unconditionalRigths.actionsMask.get(DocflowConfig.ImplicitActions.DELETE.index);
+        final boolean isRetrievable = unconditionalRigths.actionsMask.get(CrudActions.RETRIEVE.index);
+        final boolean isDeletable = unconditionalRigths.actionsMask.get(CrudActions.DELETE.index);
 
         final boolean isNewState = state.index == 0;
         final DocumentAccessActionsRights unconditionalRigthsInAction = res.unconditionalRigthsInAction;
@@ -219,17 +238,17 @@ public class RightsCalculator {
         unconditionalRigthsInAction.updateMask = document.implicitFieldsMask.copy();
         unconditionalRigthsInAction.updateMask.inverse();
         if (isNewState) {
-            final Field stateFld = document.fieldByFullname.get(DocflowConfig.ImplicitFields.STATE.name());
+            final Field stateFld = document.fieldByFullname.get(BuiltInFields.STATE.name());
             if (stateFld != null)
                 unconditionalRigthsInAction.updateMask.set(stateFld.index, true);
         }
         unconditionalRigthsInAction.actionsMask = state.actionsMask.copy();
         // Rule: In inAction mode action's java code can perform all actions allowed in the state, plus actions - update/delete/recover
-        unconditionalRigthsInAction.actionsMask.set(DocflowConfig.ImplicitActions.RETRIEVE.index, true);
+        unconditionalRigthsInAction.actionsMask.set(CrudActions.RETRIEVE.index, true);
         if (!isNewState) {
-            unconditionalRigthsInAction.actionsMask.set(DocflowConfig.ImplicitActions.UPDATE.index, true);
-            unconditionalRigthsInAction.actionsMask.set(DocflowConfig.ImplicitActions.DELETE.index, true);
-            unconditionalRigthsInAction.actionsMask.set(DocflowConfig.ImplicitActions.RECOVER.index, true);
+            unconditionalRigthsInAction.actionsMask.set(CrudActions.UPDATE.index, true);
+            unconditionalRigthsInAction.actionsMask.set(CrudActions.DELETE.index, true);
+            unconditionalRigthsInAction.actionsMask.set(CrudActions.RECOVER.index, true);
         }
         unconditionalRigthsInAction.retrieveMask = unconditionalRigths.retrieveMask;
 
@@ -241,9 +260,9 @@ public class RightsCalculator {
         unconditionalRigthsForDeletedObjects.actionsMask = unconditionalRigths.actionsMask.copy();
         unconditionalRigthsForDeletedObjects.actionsMask.clear();
         if (isRetrievable) {
-            unconditionalRigthsForDeletedObjects.actionsMask.set(DocflowConfig.ImplicitActions.RETRIEVE.index, true);
+            unconditionalRigthsForDeletedObjects.actionsMask.set(CrudActions.RETRIEVE.index, true);
             if (isDeletable)
-                unconditionalRigthsForDeletedObjects.actionsMask.set(DocflowConfig.ImplicitActions.RECOVER.index, true);
+                unconditionalRigthsForDeletedObjects.actionsMask.set(CrudActions.RECOVER.index, true);
         }
         unconditionalRigthsForDeletedObjects.retrieveMask = unconditionalRigths.retrieveMask;
 
@@ -254,26 +273,28 @@ public class RightsCalculator {
             for (int i = 0; i < roles.length; i++) {
                 final String roleName = roles[i];
                 final Role role = docflow.roles.get(roleName.toUpperCase());
-                final RoleDocument roleDocument = role.documents.get(document.name.toUpperCase());
-                if (roleDocument != null && roleDocument.relations != null) {
-                    int j = 0;
-                    for (Relation relation : roleDocument.relations) {
-                        final int relationIndex = relation.documentRelation.index;
-                        RelationInfo r = relationsMasks[relationIndex];
-                        if (r == null) {
-                            r = relationsMasks[relationIndex] = new RelationInfo();
-                            r.relationEvaluator = relation.documentRelation.evaluator;
-                            r.viewMask = relation.viewMask.copy();
-                            r.updateMask = relation.updateMask.copy();
-                            r.actionsMask = relation.actionsMask.copy();
-                            r.retrieveMask = new BitArray(roleDocument.relations.length);
-                            r.retrieveMask.set(j, true);
-                        } else {
-                            r.viewMask.add(relation.viewMask);
-                            r.updateMask.add(relation.updateMask);
-                            r.actionsMask.add(relation.actionsMask);
+                if (role != null) {
+                    final RoleDocument roleDocument = role.documents.get(document.name.toUpperCase());
+                    if (roleDocument != null && roleDocument.relations != null) {
+                        int j = 0;
+                        for (Relation relation : roleDocument.relations) {
+                            final int relationIndex = relation.documentRelation.index;
+                            RelationInfo r = relationsMasks[relationIndex];
+                            if (r == null) {
+                                r = relationsMasks[relationIndex] = new RelationInfo();
+                                r.relationEvaluator = relation.documentRelation.evaluator;
+                                r.viewMask = relation.viewMask.copy();
+                                r.updateMask = relation.updateMask.copy();
+                                r.actionsMask = relation.actionsMask.copy();
+                                r.retrieveMask = new BitArray(roleDocument.relations.length);
+                                r.retrieveMask.set(j, true);
+                            } else {
+                                r.viewMask.add(relation.viewMask);
+                                r.updateMask.add(relation.updateMask);
+                                r.actionsMask.add(relation.actionsMask);
+                            }
+                            j++;
                         }
-                        j++;
                     }
                 }
             }

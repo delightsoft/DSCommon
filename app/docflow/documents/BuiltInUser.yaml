@@ -1,0 +1,6 @@
+document BuiltInUser report:
+  fields:
+    - roles      string(100)
+
+
+

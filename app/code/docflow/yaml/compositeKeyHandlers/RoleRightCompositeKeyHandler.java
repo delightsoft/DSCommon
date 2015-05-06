@@ -1,6 +1,6 @@
 package code.docflow.yaml.compositeKeyHandlers;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import code.docflow.model.RoleRight;
 import code.docflow.yaml.CompositeKeyHandler;
 import code.docflow.yaml.YamlMessages;
@@ -22,7 +22,6 @@ public class RoleRightCompositeKeyHandler implements CompositeKeyHandler<String,
         final Matcher matcher = keyPattern.matcher(value);
         if (!matcher.find()) {
             result.addMsg(YamlMessages.error_InvalidRoleRightFormat, parser.getSavedFilePosition(), parser.getSavedValue());
-            parser.skipNextValue();
             return null;
         }
 

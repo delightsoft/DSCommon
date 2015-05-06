@@ -1,6 +1,6 @@
 package code.docflow.yaml;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 import org.apache.commons.lang.NotImplementedException;
 import org.yaml.snakeyaml.events.Event;
 import org.yaml.snakeyaml.events.ScalarEvent;

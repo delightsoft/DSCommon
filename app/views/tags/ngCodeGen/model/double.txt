@@ -1,0 +1,13 @@
+%{
+def field = _arg
+def T = "    "; // one tab
+if (field.indexFlag) {
+}%    #{ngCodeGen.model._index _arg /}
+%{ }
+if (!field.nullable) {
+    out.print T + "public double ${field.name};" }%
+#{ngCodeGen.getCalculated _arg, type:'double' /}%{
+} else {
+    out.print T + "public Double ${field.name};" }%
+#{ngCodeGen.getCalculated _arg, type:'Double' /}%{
+} }%

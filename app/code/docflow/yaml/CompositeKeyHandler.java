@@ -1,6 +1,6 @@
 package code.docflow.yaml;
 
-import code.controlflow.Result;
+import code.docflow.controlflow.Result;
 
 import java.util.HashSet;
 

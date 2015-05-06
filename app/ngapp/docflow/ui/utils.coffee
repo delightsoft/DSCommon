@@ -25,20 +25,25 @@ module.provider '$docflowUtils', [(->
     d = docId.indexOf('@')
     return d == -1
 
-  utils.processDocumentsListBeforeEditing = processDocumentsListBeforeEditing = ((list) ->
+  utils.processDocumentsListBeforeEditing = processDocumentsListBeforeEditing = ((list, level) ->
+    level = if angular.isDefined(level) then level + 1 else 0
     if list
+      i = 0
       for item in list
-        processDocumentBeforeEditing item
+        processDocumentBeforeEditing item, level
+        if level > 0
+          item.i = i++
     return)
 
-  utils.processDocumentBeforeEditing = processDocumentBeforeEditing = ((item) ->
+  utils.processDocumentBeforeEditing = processDocumentBeforeEditing = ((item, level) ->
     return unless item?._u
+    level = if angular.isDefined(level) then level + 1 else 0
     for k, v of item._u
       if angular.isArray v
-        processDocumentsListBeforeEditing v
+        processDocumentsListBeforeEditing v, level
         item[k] = v
       else if angular.isObject v
-        processDocumentBeforeEditing v
+        processDocumentBeforeEditing v, level
         item[k] = v
     return)
 
@@ -57,17 +62,58 @@ module.provider '$docflowUtils', [(->
             item._u[k] = buildDocumentUpdate v
           else if angular.isObject item._u[k]
             item._u[k] = null
-    item._u.id = item.id if item.id
-    item._u.rev = item.rev if item.rev
+    if angular.isDefined item.i
+      item._u.i = item.i
+    else if angular.isDefined item.id
+      item._u.id = item.id
+      if angular.isDefined item.rev
+        item._u.rev = item.rev
     return item._u)
 
-    utils.encodeUriQuery = ((val, pctEncodeSpaces) ->
-      return `encodeURIComponent(val).
-        replace(/%40/gi, '@').
-        replace(/%3A/gi, ':').
-        replace(/%24/g, '$').
-        replace(/%2C/gi, ',').
-        replace(/%20/g, (pctEncodeSpaces ? '%20': '+'))`
-      )
+  utils.encodeUriQuery = ((val, pctEncodeSpaces) ->
+    return encodeURIComponent(val).
+      replace(/%40/gi, '@').
+      replace(/%3A/gi, ':').
+      replace(/%24/g, '$').
+      replace(/%2C/gi, ',').
+      replace(/%20/g, if pctEncodeSpaces then '%20' else '+')
+    )
+
+  utils.updateModel = updateModel = ((model, update) ->
+    return update unless model
+    for k, v of model
+      if k.substr(0, 1) != '$'
+        # nothing
+      else if not update.hasOwnProperty k
+        delete model[k]
+      else if angular.isArray v # update array
+        arr = update[k]
+        for u, i in arr
+          for m in v
+            if m.id == u.id
+              updateModel m, u
+              arr[i] = m # set model array element to update element
+        angular.copy arr, v # copy array from update to model
+      else if angular.isObject v # update object
+        updateModel(v, update[k])
+      else
+        model[k] = update[k]
+    angular.extend model, update
+    return model)
 
   return)]
+
+module.run(
+  ['$rootScope', '$docflowConfig', '$state', '$location', '$sce',
+   (($rootScope, $docflowConfig, $state, $location, $sce) ->
+
+     $rootScope.$angular = angular
+     $rootScope.$sce = $sce
+     $rootScope.pageTitle = ""
+     # sets value to right pageTitle from any inner $rootScope
+     $rootScope.setPageTitle = ((title) ->
+       $rootScope.pageTitle = title
+       $state.current?.pageTitle = title
+       return)
+     return)]
+)

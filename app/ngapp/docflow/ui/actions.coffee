@@ -1,4 +1,4 @@
-module = angular.module 'docflow.ui.actions', ['docflow.config', 'ng']
+module = angular.module 'docflow.ui.actions', ['docflow.config']
 
 module.constant 'docflowActionInProgressShowAfterDelayTime', 2000
 module.constant 'docflowActionDoneHideDelayTime', 3000
@@ -9,10 +9,10 @@ module.directive 'docflowActionsContainer',
     return {
       restrict: 'A'
       scope: true
-      controller: (($scope) ->
+      controller: ['$scope', (($scope) ->
         @contentTransclude = null
         @contentElement = null
-        return)
+        return)]
       link: (($scope, element, attrs, ctrl) ->
         messageScope = null
         currentElement = null
@@ -32,7 +32,6 @@ module.directive 'docflowActionsContainer',
           if message
             messageScope = $scope.$new()
             ctrl.contentTransclude messageScope, ((clone) ->
-#              clone.html(message)
               currentElement = clone
               currentElement.html message
               $compile(currentElement.contents())(messageScope)
@@ -43,7 +42,8 @@ module.directive 'docflowActionsContainer',
           $docflowActions.remove container
           return)
         return)
-  })]
+    }
+  )]
 
 module.directive 'docflowActionsContainerContent',
   ['$docflowActions', '$compile',
@@ -56,7 +56,8 @@ module.directive 'docflowActionsContainerContent',
         container.contentTransclude = $transclude
         container.contentElement = element
         return)
-  })]
+    }
+  )]
 
 module.directive 'docflowActionsAutohide',
   ['$docflowActions', 'docflowActionDoneHideDelayTime', '$timeout',
@@ -67,10 +68,11 @@ module.directive 'docflowActionsAutohide',
       link: (($scope, element, attrs) ->
         $scope.action.showClose = false
         $timeout (->
-          $scope.action.hide()
+          $scope.action?.hide()
           return), docflowActionDoneHideDelayTime
         return)
-  })]
+    }
+  )]
 
 module.factory '$docflowActions',
   ['$docflowConfig', '$docflowUtils', 'docflowActionInProgressShowAfterDelayTime', 'docflowActionDoneHideDelayTime', '$rootScope', '$timeout',
@@ -107,7 +109,7 @@ module.factory '$docflowActions',
       Action: (class Action
         constructor: ((docId, name, promise) ->
           if not docId
-            throw Error 'docId argument is missing'
+            throw Error 'id argument is missing'
           if not name
             throw Error 'name argument is missing'
           if not promise
@@ -115,6 +117,7 @@ module.factory '$docflowActions',
 
           sid = $docflowUtils.splitFullId docId
           title = $docflowConfig.docs[sid.docType]?.actions?[name]?.title
+          title = name if not title
           message = $docflowConfig.messages['actionProgress']?.replace '{{title}}', title
 
           @name = name
@@ -133,7 +136,9 @@ module.factory '$docflowActions',
           promise.then(
             ((doneMessage) =>
               @state = 'done'
-              @message = if doneMessage
+              if @name == 'list' # it's a special built-in action
+                @message = doneMessage
+              else if doneMessage
                 @showClose = true
                 @message = doneMessage
               else
@@ -187,5 +192,6 @@ module.factory '$docflowActions',
         selectContainer action
         action.promise.then((-> selectContainer(action)), (-> selectContainer(action)))
         return)
-  })]
+    }
+  )]
 

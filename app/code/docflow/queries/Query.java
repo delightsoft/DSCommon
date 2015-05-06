@@ -1,4 +1,5 @@
 package code.docflow.queries;
+
 //
 // Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)
 //
@@ -9,16 +10,16 @@ import code.docflow.model.FieldReference;
 import code.docflow.model.FieldStructure;
 import code.docflow.rights.DocumentAccessActionsRights;
 import code.docflow.rights.RightsCalculator;
-import code.jsonBinding.OptionalValuesAccessor;
-import code.jsonBinding.annotations.doc.JsonTemplate;
-import code.jsonBinding.annotations.field.JsonAccessor;
-import code.jsonBinding.annotations.field.JsonExclude;
-import code.models.Document;
-import code.models.PersistentDocument;
-import code.types.PolymorphicRef;
-import code.users.CurrentUser;
-import code.utils.*;
-import com.google.common.base.Preconditions;
+import code.docflow.jsonBinding.OptionalValuesAccessor;
+import code.docflow.jsonBinding.annotations.doc.JsonTemplate;
+import code.docflow.jsonBinding.annotations.field.JsonAccessor;
+import code.docflow.jsonBinding.annotations.field.JsonExclude;
+import code.docflow.docs.Document;
+import code.docflow.docs.DocumentPersistent;
+import code.docflow.types.DocumentRef;
+import code.docflow.users.CurrentUser;
+import code.docflow.utils.*;
+import static com.google.common.base.Preconditions.*;
 import com.google.common.base.Strings;
 import org.hibernate.ScrollMode;
 import org.hibernate.ScrollableResults;
@@ -35,6 +36,9 @@ import java.util.TreeMap;
 /**
  * Base class Query&lt;Class&gt; class.  Constains static helpers
  */
+
+// TODO: Remove this class after 3/1/15 - since it replaced by more sophisticated classes
+
 public abstract class Query {
 
     public static final int LAST_PAGE = -1;
@@ -42,7 +46,7 @@ public abstract class Query {
 
     public static class Result<D extends Document> {
 
-        public QueryParams query;
+        public QueryParamsOld query;
 
         public List<D> list;
 
@@ -67,7 +71,7 @@ public abstract class Query {
         }
     }
 
-    public static class QueryParams {
+    public static class QueryParamsOld {
         /**
          * Page.
          */
@@ -84,7 +88,6 @@ public abstract class Query {
         @JsonAccessor(OptionalValuesAccessor.class)
         @JsonTemplate("dict")
         public Map<String, Object> params = new HashMap<String, Object>();
-
     }
 
     public static class Paging {
@@ -114,19 +117,19 @@ public abstract class Query {
             DocumentAccessActionsRights fullRights = RightsCalculator.instance.calculate(docType, userRoles);
             BitArray mask = fullRights.viewMask.copy();
             mask.intersect(docType.levelMask);
-            if (!buildFulltextSearchQuery(sbFrom, sbWhere, "doc", docType, userRoles, fullRights, mask, 0)) {
+            if (!buildFulltextSearchQuery(sbFrom, sbWhere, "doc", docType, userRoles, fullRights, mask)) {
                 nothingToSearch = true;
                 sbFrom = sbWhere = null;
             }
         }
 
-        public <T extends PersistentDocument> Result<T> listEntitiesWithFulltextSearch(String what, String from, String where, TreeMap<String, Object> params, String searchText, String orderBy, Class entityClass, Paging paging, String from2) {
+        public <T extends DocumentPersistent> Result<T> listEntitiesWithFulltextSearch(String what, String from, String where, TreeMap<String, Object> params, String searchText, String orderBy, Class entityClass, Paging paging, String from2, String calculatedField) {
             from = from + sbFrom.toString();
             where = "(" + where + ")" + " AND (" + sbWhere.toString() + ")";
             if (params == null)
                 params = new TreeMap<String, Object>();
             params.put("x", "%" + searchText.toUpperCase() + "%");
-            return listEntities(what, from, where, params, orderBy, entityClass, from2, paging);
+            return listEntities(what, from, where, params, orderBy, entityClass, from2, paging, calculatedField);
         }
     }
 
@@ -144,7 +147,7 @@ public abstract class Query {
             factory = new TypeBuildersFactory<FulltextSearch>() {
                 @Override
                 public FulltextSearch newInstance(TypeDescription typeDesc) {
-                    com.google.common.base.Preconditions.checkArgument(typeDesc.parameters == null);
+                    checkArgument(typeDesc.parameters == null);
                     return new FulltextSearch(userRoles, typeDesc.type);
                 }
             };
@@ -161,10 +164,10 @@ public abstract class Query {
     public static <T extends Document> T dictParam(String paramName, Class<T> dictClass, Http.Request request) {
         final String paramValue = request.params.get(paramName);
         if (!Strings.isNullOrEmpty(paramValue)) {
-            PolymorphicRef ref = PolymorphicRef.parse(paramValue);
-            if (ref != null) {
+            DocumentRef ref = DocumentRef.parse(paramValue);
+            if (ref != DocumentRef.NULL) {
                 DocType docType = DocflowConfig.getDocumentTypeByClass(dictClass);
-                Preconditions.checkState(docType != null);
+                checkState(docType != null);
                 if (ref.type.equalsIgnoreCase(docType.name)) {
                     return (T) ref.getDocumentUnsafe();
                 }
@@ -222,7 +225,7 @@ public abstract class Query {
             StringBuilder sb = new StringBuilder();
             for (String arg : args) {
                 if (sb.length() > 0)
-                    sb.append(", ");
+                    sb.append(',');
                 sb.append(arg).append(DESC);
             }
             return sb.toString();
@@ -270,34 +273,38 @@ public abstract class Query {
     /**
      * Select document with fulltext search basic implementation.
      */
-    public static <T extends PersistentDocument> Result<T> listEntities(String what, String from, String where, TreeMap<String, Object> params, String searchText, String orderBy, Class entityClass, String from2, Paging paging) {
+    public static <T extends DocumentPersistent> Result<T> listEntities(String what, String from, String where, TreeMap<String, Object> params, String searchText, String orderBy, Class entityClass, String from2, Paging paging) {
+        return listEntities(what, from, where, params, searchText, orderBy, entityClass, from2, paging, null);
+    }
+
+    public static <T extends DocumentPersistent> Result<T> listEntities(String what, String from, String where, TreeMap<String, Object> params, String searchText, String orderBy, Class entityClass, String from2, Paging paging, String calculatedField) {
         if (searchText != null) {
             searchText = searchText.trim();
             if (searchText != "") {
                 FulltextSearch fulltextSearch = factory.get(CurrentUser.getInstance().getUserRoles()).factory.get(entityClass);
                 if (!fulltextSearch.nothingToSearch)
-                    return fulltextSearch.listEntitiesWithFulltextSearch(what, from, where, params, searchText, orderBy, entityClass, paging, from2);
+                    return fulltextSearch.listEntitiesWithFulltextSearch(what, from, where, params, searchText, orderBy, entityClass, paging, from2, calculatedField);
             }
         }
-        return listEntities(what, from, where, params, orderBy, entityClass, from2, paging);
+        return listEntities(what, from, where, params, orderBy, entityClass, from2, paging, calculatedField);
     }
 
     /**
      * Selects entities with pagination.
      */
-    public static <T extends PersistentDocument> Result<T> listEntities(String what, String from, String where, TreeMap<String, Object> params, String orderBy, Class entityClass, String from2, Paging paging) {
+    private static <T extends DocumentPersistent> Result<T> listEntities(String what, String from, String where, TreeMap<String, Object> params, String orderBy, Class entityClass, String from2, Paging paging, String calculatedField) {
 
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(what), "what");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(from), "from");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(where), "where");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(orderBy), "orderBy");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(from2), "from2");
-        Preconditions.checkNotNull(paging, "paging");
+        checkArgument(!Strings.isNullOrEmpty(what), "what");
+        checkArgument(!Strings.isNullOrEmpty(from), "from");
+        checkArgument(!Strings.isNullOrEmpty(orderBy), "orderBy");
+        checkArgument(!Strings.isNullOrEmpty(from2), "from2");
+        checkNotNull(paging, "paging");
 
         final Session session = (Session) JPA.em().getDelegate();
 
         final org.hibernate.Query pageLookup = session.createQuery(
-                "SELECT doc.id FROM " + from + " WHERE " + where +  " ORDER BY " + orderBy);
+                "SELECT doc.id" + (Strings.isNullOrEmpty(calculatedField) ? "" : ", " + calculatedField) +
+                        " FROM " + from + (Strings.isNullOrEmpty(where) ? "" : (" WHERE " + where)) + " ORDER BY " + orderBy);
 
         if (params != null)
             for (Map.Entry<String, Object> param : params.entrySet())
@@ -333,7 +340,7 @@ public abstract class Query {
         }
 
         final Result<T> res = new Result<T>();
-        res.query = new QueryParams();
+        res.query = new QueryParamsOld();
 
         if (lines == 0) {
             res.query.p = 0;
@@ -366,12 +373,12 @@ public abstract class Query {
 
     private static boolean buildFulltextSearchQuery(
             StringBuilder sbFrom, StringBuilder sbWhere, String prefix, DocType docType, String userRoles,
-            DocumentAccessActionsRights fullRights, BitArray levelMask, int level) {
-        return buildFulltextSearchQuery(sbFrom, sbWhere, prefix, docType, userRoles, fullRights, levelMask, level, new AliasIterator());
+            DocumentAccessActionsRights fullRights, BitArray levelMask) {
+        return buildFulltextSearchQuery(false, sbFrom, sbWhere, prefix, docType, userRoles, fullRights, levelMask, 0, new AliasIterator());
     }
 
     private static boolean buildFulltextSearchQuery(
-            StringBuilder sbFrom, StringBuilder sbWhere, String prefix, DocType docType, String userRoles,
+            boolean useFullname, StringBuilder sbFrom, StringBuilder sbWhere, String prefix, DocType docType, String userRoles,
             DocumentAccessActionsRights fullRights, BitArray levelMask, int level, AliasIterator aliasIterator) {
         BitArray.EnumTrueValues tv = levelMask.getEnumTrueValues();
         int i = 0;
@@ -382,17 +389,18 @@ public abstract class Query {
                 continue;
             switch (field.type) {
                 case TAGS:
+                case STRUCTURE:
                 case SUBTABLE:
                     FieldStructure fieldStructure = (FieldStructure) field;
                     BitArray structureLevelMask = fullRights.viewMask.copy();
                     structureLevelMask.intersect(fieldStructure.levelMask);
                     if (((FieldStructure) field).single) {
-                        buildFulltextSearchQuery(sbFrom, sbWhere, prefix + "." + field.name, docType, userRoles, fullRights, structureLevelMask, level, aliasIterator);
+                        buildFulltextSearchQuery(true, sbFrom, sbWhere, prefix, docType, userRoles, fullRights, structureLevelMask, level, aliasIterator);
                     } else {
                         String structureAlias = aliasIterator.next();
                         int lengthWithoutStructure = sbFrom.length();
                         sbFrom.append(" LEFT JOIN ").append(prefix + "." + field.name).append(" AS ").append(structureAlias);
-                        if (!buildFulltextSearchQuery(sbFrom, sbWhere, structureAlias, docType, userRoles, fullRights, structureLevelMask, level, aliasIterator))
+                        if (!buildFulltextSearchQuery(false, sbFrom, sbWhere, structureAlias, docType, userRoles, fullRights, structureLevelMask, level, aliasIterator))
                             sbFrom.setLength(lengthWithoutStructure);
                     }
                     break;
@@ -408,13 +416,14 @@ public abstract class Query {
                     String docAlias = aliasIterator.next();
                     int lengthWithoutDoc = sbFrom.length();
                     sbFrom.append(" LEFT JOIN ").append(prefix + "." + field.name).append(" AS ").append(docAlias);
-                    if (!buildFulltextSearchQuery(sbFrom, sbWhere, docAlias, refDocType, userRoles, refDocFullRights, refDocLevelMask, level++, aliasIterator))
+                    if (!buildFulltextSearchQuery(false, sbFrom, sbWhere, docAlias, refDocType, userRoles, refDocFullRights, refDocLevelMask, level + 1, aliasIterator))
                         sbFrom.setLength(lengthWithoutDoc);
                     break;
                 case STRING:
+                case TEXT:
                     if (sbWhere.length() > 0)
                         sbWhere.append(" OR ");
-                    sbWhere.append("UPPER(").append(prefix + "." + field.fullname).append(") LIKE :x");
+                    sbWhere.append("UPPER(").append(prefix + "." + (useFullname ? field.fullname : field.name)).append(") LIKE :x");
                     break;
             }
         }

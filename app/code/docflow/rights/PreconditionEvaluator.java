@@ -1,6 +1,6 @@
 package code.docflow.rights;
 
-import code.models.Document;
+import code.docflow.docs.Document;
 
 /**
  * Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)

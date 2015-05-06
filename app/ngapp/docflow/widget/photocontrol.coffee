@@ -1,4 +1,6 @@
-module = angular.module 'docflow.widget.photo.control', ['docflow.config' ,'ui.bootstrap.modal']
+# TODO: Update to file logic up to 2015/3/1
+
+module = angular.module 'docflow.widget.photoСontrol', ['docflow.config' ,'ui.bootstrap.modal']
 
 module.directive 'docflowWidgetPhotoControl',[
   '$docflowUtils', '$modal', '$http'
@@ -11,10 +13,10 @@ module.directive 'docflowWidgetPhotoControl',[
       ($scope.changePhoto =->
 
         photoSelect = $modal.open(
-          templateUrl: "/tmpl/modal/form-photo-control"
+          # TODO: Replace ngApp in the path by $docflowConfig.templateBase ...and format out all this script
+          templateUrl: "/tmpl/ngApp/modal/form-photo-control"
           backdrop: 'static'
-          controller: [
-            '$scope',
+          controller: ['$scope',
             (($modalScope) ->
 
               $modalScope.item =

@@ -1,7 +1,7 @@
 package code.docflow.model;
 
 import code.docflow.yaml.annotations.NotYamlField;
-import code.utils.BitArray;
+import code.docflow.utils.BitArray;
 
 /**
  * Author: Alexey Zorkaltsev (alexey@zorkaltsev.com)
